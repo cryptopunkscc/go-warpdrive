@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"github.com/cryptopunkscc/astrald/cslq"
+	"go-warpdrive/adapter"
 	"log"
 )
 
