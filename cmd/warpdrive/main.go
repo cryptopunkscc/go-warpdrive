@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"go-warpdrive/adapter/apphost"
-	"go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/adapter/apphost"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"io"
 	"log"
 	"os"

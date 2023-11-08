@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/cryptopunkscc/astrald/auth/id"
-	"go-warpdrive/adapter"
-	"go-warpdrive/proto"
-	"go-warpdrive/service"
+	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/service"
 	"log"
 )
 

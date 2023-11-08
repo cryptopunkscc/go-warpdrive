@@ -1,8 +1,8 @@
 package service
 
 import (
-	"go-warpdrive/proto"
-	"go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"sort"
 	"sync"
 	"time"

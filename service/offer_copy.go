@@ -1,9 +1,9 @@
 package service
 
 import (
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 	"github.com/mitchellh/ioprogress"
-	"go-warpdrive/proto"
-	"go-warpdrive/storage/file"
 	"io"
 	"time"
 )

@@ -1,7 +1,7 @@
 package file
 
 import (
-	"go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"io"
 	"os"
 	"path/filepath"

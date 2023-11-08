@@ -2,9 +2,9 @@ package warpdrived
 
 import (
 	"fmt"
-	"go-warpdrive/proto"
-	"go-warpdrive/service"
-	"go-warpdrive/storage/file"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/service"
+	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 	"log"
 	"os"
 	"path/filepath"

@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"sort"
 	"time"
 )

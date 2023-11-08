@@ -2,8 +2,8 @@ package file
 
 import (
 	"encoding/gob"
-	"go-warpdrive/proto"
-	"go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"log"
 	"os"
 	"path/filepath"

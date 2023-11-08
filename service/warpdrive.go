@@ -1,9 +1,9 @@
 package service
 
 import (
-	"go-warpdrive/proto"
-	"go-warpdrive/storage/file"
-	"go-warpdrive/storage/memory"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/storage/file"
+	"github.com/cryptopunkscc/go-warpdrive/storage/memory"
 )
 
 var _ proto.Service = Component{}

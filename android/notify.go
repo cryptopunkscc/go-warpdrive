@@ -2,10 +2,10 @@ package android
 
 import (
 	"fmt"
-	"go-warpdrive/adapter"
-	android "go-warpdrive/android/notify"
-	"go-warpdrive/proto"
-	"go-warpdrive/service"
+	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	android "github.com/cryptopunkscc/go-warpdrive/android/notify"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/service"
 	"log"
 	"strconv"
 	"strings"

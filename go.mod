@@ -1,4 +1,4 @@
-module go-warpdrive
+module github.com/cryptopunkscc/go-warpdrive
 
 go 1.21
 

@@ -1,9 +1,9 @@
 package service
 
 import (
-	"go-warpdrive/adapter"
-	"go-warpdrive/proto"
-	"go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"log"
 	"sync"
 )

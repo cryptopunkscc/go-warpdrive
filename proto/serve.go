@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cryptopunkscc/astrald/cslq"
-	"go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive/adapter"
 	"io"
 	"log"
 	"sync"

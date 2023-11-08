@@ -1,10 +1,10 @@
 package android
 
 import (
-	"go-warpdrive/adapter"
-	"go-warpdrive/android/content"
-	warpdrive "go-warpdrive/proto"
-	"go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive/android/content"
+	warpdrive "github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"path"
 )
 

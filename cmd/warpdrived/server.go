@@ -1,9 +1,9 @@
 package main
 
 import (
-	"go-warpdrive/server"
-	"go-warpdrive/service"
-	"go-warpdrive/storage/file"
+	"github.com/cryptopunkscc/go-warpdrive/server"
+	"github.com/cryptopunkscc/go-warpdrive/service"
+	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 )
 
 func Server() *warpdrived.Server {

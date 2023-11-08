@@ -3,7 +3,7 @@ package apphost
 import (
 	"github.com/cryptopunkscc/astrald/auth/id"
 	apphost "github.com/cryptopunkscc/astrald/lib/astral"
-	"go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive/adapter"
 	"io"
 )
 

@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"io"
 	"os"
 )
