@@ -146,7 +146,7 @@ func (d Dispatcher) Download(offerId OfferId) (err error) {
 	return
 }
 
-func (d Dispatcher) ListPeers() (err error) {
+func (d Dispatcher) ListPeers(any) (err error) {
 	// Get peers
 	peers := d.srv.Peer().List()
 	// Send peers
@@ -175,7 +175,7 @@ func (d Dispatcher) ListenOffers(filter Filter) (err error) {
 	return
 }
 
-func (d Dispatcher) UpdatePeer() (err error) {
+func (d Dispatcher) UpdatePeer(any) (err error) {
 	// Read peer update
 	// Fixme refactor to cslq
 	var req []string

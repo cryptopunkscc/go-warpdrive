@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cryptopunkscc/astrald/cslq"
-	"github.com/cryptopunkscc/astrald/cslq/rpc"
 	"go-warpdrive/adapter"
 	"io"
 	"log"
@@ -78,30 +77,30 @@ func Dispatch(d *Dispatcher) (err error) {
 	}
 	switch cmd {
 	case infoPing:
-		return rpc.Dispatch(d.conn, "", d.Ping)
+		return cslq.Invokef(d.conn, "", d.Ping)
 	case remoteSend:
-		return rpc.Dispatch(d.conn, "", d.Receive)
+		return cslq.Invokef(d.conn, "", d.Receive)
 	case remoteDownload:
-		return rpc.Dispatch(d.conn, "[c]c q q", d.Upload)
+		return Invokef3(d.conn, "[c]c q q", d.Upload)
 	}
 	if !d.authorized {
 		return nil
 	}
 	switch cmd {
 	case localListPeers:
-		return rpc.Dispatch(d.conn, "", d.ListPeers)
+		return cslq.Invokef(d.conn, "", d.ListPeers)
 	case localCreateOffer:
-		return rpc.Dispatch(d.conn, "[c]c [c]c", d.CreateOffer)
+		return Invokef2(d.conn, "[c]c [c]c", d.CreateOffer)
 	case localAcceptOffer:
-		return rpc.Dispatch(d.conn, "[c]c", d.AcceptOffer)
+		return cslq.Invokef(d.conn, "[c]c", d.AcceptOffer)
 	case localListOffers:
-		return rpc.Dispatch(d.conn, "c", d.ListOffers)
+		return cslq.Invokef(d.conn, "c", d.ListOffers)
 	case localListenOffers:
-		return rpc.Dispatch(d.conn, "c", d.ListenOffers)
+		return cslq.Invokef(d.conn, "c", d.ListenOffers)
 	case localListenStatus:
-		return rpc.Dispatch(d.conn, "c", d.ListenStatus)
+		return cslq.Invokef(d.conn, "c", d.ListenStatus)
 	case localUpdatePeer:
-		return rpc.Dispatch(d.conn, "", d.UpdatePeer)
+		return cslq.Invokef(d.conn, "", d.UpdatePeer)
 	}
 	return errors.New("protocol violation: unknown command")
 }
@@ -120,4 +119,23 @@ func nextCommand(d *Dispatcher) (cmd uint8, err error) {
 		err = errEnded
 	}
 	return
+}
+
+func Invokef2[T1 any, T2 any](r io.Reader, format string, fn func(T1, T2) error) error {
+	var v1 T1
+	var v2 T2
+	if err := cslq.Decode(r, format, &v1, &v2); err != nil {
+		return err
+	}
+	return fn(v1, v2)
+}
+
+func Invokef3[T1 any, T2 any, T3 any](r io.Reader, format string, fn func(T1, T2, T3) error) error {
+	var v1 T1
+	var v2 T2
+	var v3 T3
+	if err := cslq.Decode(r, format, &v1, &v2, &v3); err != nil {
+		return err
+	}
+	return fn(v1, v2, v3)
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (d Dispatcher) Ping() (err error) {
+func (d Dispatcher) Ping(any) (err error) {
 	finish := make(chan struct{})
 	defer close(finish)
 	go func() {
@@ -32,7 +32,7 @@ func (d Dispatcher) Ping() (err error) {
 	}
 }
 
-func (d Dispatcher) Receive() (err error) {
+func (d Dispatcher) Receive(any) (err error) {
 	peerId := PeerId(d.callerId)
 	peer := d.srv.Peer().Get(peerId)
 	// Check if peer is blocked
