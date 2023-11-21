@@ -1,9 +1,7 @@
 package service
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"log"
 	"sync"
 )
@@ -15,9 +13,12 @@ type Component struct {
 	*Cache
 	*Observers
 	*Channel
-	adapter.Api
-	storage.FileResolver
-	Job *sync.WaitGroup
+	warpdrive.FileResolver
+	job *sync.WaitGroup
+}
+
+func (c *Component) Job() *sync.WaitGroup {
+	return c.job
 }
 
 type Config struct {
@@ -32,9 +33,9 @@ type Sys struct {
 
 type Cache struct {
 	*Mutex
-	Incoming proto.Offers
-	Outgoing proto.Offers
-	Peers    proto.Peers
+	Incoming warpdrive.Offers
+	Outgoing warpdrive.Offers
+	Peers    warpdrive.Peers
 }
 
 type Mutex struct {
@@ -44,10 +45,10 @@ type Mutex struct {
 }
 
 type Observers struct {
-	IncomingOffers *proto.Subscriptions
-	IncomingStatus *proto.Subscriptions
-	OutgoingOffers *proto.Subscriptions
-	OutgoingStatus *proto.Subscriptions
+	IncomingOffers *warpdrive.Subscriptions
+	IncomingStatus *warpdrive.Subscriptions
+	OutgoingOffers *warpdrive.Subscriptions
+	OutgoingStatus *warpdrive.Subscriptions
 }
 
 type Channel struct {
@@ -57,9 +58,9 @@ type Channel struct {
 type Notify func([]Notification)
 
 type Notification struct {
-	proto.Peer
-	proto.Offer
-	*proto.Info
+	warpdrive.Peer
+	warpdrive.Offer
+	*warpdrive.Info
 }
 
 const (

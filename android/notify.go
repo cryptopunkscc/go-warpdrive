@@ -2,9 +2,8 @@ package android
 
 import (
 	"fmt"
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive"
 	android "github.com/cryptopunkscc/go-warpdrive/android/notify"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"github.com/cryptopunkscc/go-warpdrive/service"
 	"log"
 	"strconv"
@@ -19,12 +18,11 @@ type notifier struct {
 	inGroup       android.Notification
 	outGroup      android.Notification
 	lastId        int
-	notifications map[proto.OfferId]*android.Notification
+	notifications map[warpdrive.OfferId]*android.Notification
 }
 
-func NewNotifier(api adapter.Api) service.Notify {
+func NewNotifier() service.Notify {
 	m := &notifier{}
-	m.Api = api
 	m.inChannel = android.Channel{
 		Id:         "warpdrive-in",
 		Name:       "Warp Drive incoming",
@@ -52,7 +50,7 @@ func NewNotifier(api adapter.Api) service.Notify {
 	m.outGroup.ChannelId = m.outChannel.Id
 	m.outGroup.Group = "out"
 
-	m.notifications = map[proto.OfferId]*android.Notification{}
+	m.notifications = map[warpdrive.OfferId]*android.Notification{}
 
 	m.createChannels()
 
@@ -79,16 +77,16 @@ func (m *notifier) Notify(notifications []service.Notification) {
 	// Update notifications cache
 	for _, n := range notifications {
 		switch n.Status {
-		case proto.StatusAwaiting:
-			if n.In && n.Peer.Mod == proto.PeerModAsk {
+		case warpdrive.StatusAwaiting:
+			if n.In && n.Peer.Mod == warpdrive.PeerModAsk {
 				m.create(n)
 			}
-		case proto.StatusUpdated:
+		case warpdrive.StatusUpdated:
 			m.progress(n)
 		case
-			proto.StatusFailed,
-			proto.StatusRejected,
-			proto.StatusCompleted:
+			warpdrive.StatusFailed,
+			warpdrive.StatusRejected,
+			warpdrive.StatusCompleted:
 			m.finish(n)
 		}
 	}
@@ -119,9 +117,9 @@ func (m *notifier) Notify(notifications []service.Notification) {
 	for _, n := range notifications {
 		switch n.Status {
 		case
-			proto.StatusFailed,
-			proto.StatusRejected,
-			proto.StatusCompleted:
+			warpdrive.StatusFailed,
+			warpdrive.StatusRejected,
+			warpdrive.StatusCompleted:
 			delete(m.notifications, n.Offer.Id)
 		}
 	}

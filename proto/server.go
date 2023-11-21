@@ -1,17 +1,16 @@
-package warpdrived
+package proto
 
 import (
 	"context"
 	"fmt"
 	"github.com/cryptopunkscc/astrald/auth/id"
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/service"
+	"github.com/cryptopunkscc/astrald/lib/astral"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"log"
 )
 
 type Server struct {
-	service.Component
+	warpdrive.Service
 	ctx     context.Context
 	localId id.Identity
 }
@@ -20,29 +19,26 @@ func (s *Server) String() string {
 	return "[warpdrive]"
 }
 
-func (s *Server) Run(ctx context.Context, api adapter.Api) (err error) {
+func (s *Server) Run(ctx context.Context) (err error) {
 
 	s.ctx = ctx
-	s.Api = api
 
-	if s.localId, err = s.Resolve("localnode"); err != nil {
+	if s.localId, err = astral.Resolve("localnode"); err != nil {
 		return fmt.Errorf("cannot resolve local id: %v", err)
 	}
 
-	setupCore(&s.Component)
-
-	finish := service.OfferUpdates(s.Component).Start(s.ctx)
+	finish := s.Start(ctx)
 
 	s.Peer().Fetch()
 
-	dispatchers := map[string]func(d *proto.Dispatcher) error{
-		proto.Port:    proto.Dispatch,
-		proto.PortCli: proto.Cli,
+	dispatchers := map[string]func(d *Dispatcher) error{
+		warpdrive.Port:    Dispatch,
+		warpdrive.PortCli: Cli,
 	}
 
 	for port, dispatcher := range dispatchers {
 		if err = s.register(port, dispatcher); err != nil {
-			return proto.Error(err, "Cannot register", port)
+			return warpdrive.Error(err, "Cannot register", port)
 		}
 	}
 
@@ -53,9 +49,9 @@ func (s *Server) Run(ctx context.Context, api adapter.Api) (err error) {
 
 func (s *Server) register(
 	query string,
-	dispatch func(d *proto.Dispatcher) error,
+	dispatch func(d *Dispatcher) error,
 ) (err error) {
-	port, err := s.Api.Register(query)
+	port, err := astral.Register(query)
 	if err != nil {
 		return
 	}
@@ -63,39 +59,37 @@ func (s *Server) register(
 	// Serve handlers
 	go func() {
 		requestId := uint(0)
-		for request := range port.Next() {
+		for request := range port.QueryCh() {
 			requestId = requestId + 1
-			go func(request adapter.Request, requestId uint) {
-				s.Job.Add(1)
-				defer s.Job.Done()
+			go func(request *astral.QueryData, requestId uint) {
+				s.Job().Add(1)
+				defer s.Job().Done()
 
 				conn, err := request.Accept()
 				defer conn.Close()
 
 				if err != nil {
-					err = proto.Error(err, "Cannot accept warpdrive connection")
+					err = warpdrive.Error(err, "Cannot accept warpdrive connection")
 					log.Println(err)
 					return
 				}
 
 				logPrefix := fmt.Sprint("[WARPDRIVE] ", query, ":", requestId)
 
-				callerId := request.Caller()
+				callerId := request.RemoteIdentity()
 				if callerId.IsZero() {
 					callerId = s.localId
 				}
 
 				authorized := callerId.IsEqual(s.localId)
 
-				_ = proto.NewDispatcher(
+				_ = NewDispatcher(
 					logPrefix,
 					callerId.String(),
 					authorized,
 					s.ctx,
-					s.Api,
 					conn,
-					s.Component,
-					s.Job,
+					s.Service,
 				).Serve(dispatch)
 			}(request, requestId)
 		}

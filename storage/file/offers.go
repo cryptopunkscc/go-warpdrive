@@ -2,8 +2,7 @@ package file
 
 import (
 	"encoding/gob"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"io/fs"
 	"log"
 	"os"
@@ -11,7 +10,7 @@ import (
 	"strings"
 )
 
-func Incoming(logger *log.Logger, repositoryDir string) storage.Offer {
+func Incoming(logger *log.Logger, repositoryDir string) warpdrive.OfferStorage {
 	o := offers{
 		logger,
 		filepath.Join(repositoryDir, "incoming"),
@@ -20,7 +19,7 @@ func Incoming(logger *log.Logger, repositoryDir string) storage.Offer {
 	return o
 }
 
-func Outgoing(logger *log.Logger, repositoryDir string) storage.Offer {
+func Outgoing(logger *log.Logger, repositoryDir string) warpdrive.OfferStorage {
 	o := offers{
 		logger,
 		filepath.Join(repositoryDir, "outgoing"),
@@ -34,13 +33,13 @@ type offers struct {
 	dir string
 }
 
-var _ storage.Offer = offers{}
+var _ warpdrive.OfferStorage = offers{}
 
 func (r offers) Init() {
 	_ = os.MkdirAll(r.normalizePath(""), 0700)
 }
 
-func (r offers) Save(offer proto.Offer) {
+func (r offers) Save(offer warpdrive.Offer) {
 	path := r.normalizePath(string(offer.Id))
 
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0700)
@@ -57,8 +56,8 @@ func (r offers) Save(offer proto.Offer) {
 	}
 }
 
-func (r offers) Get() proto.Offers {
-	offers := make(proto.Offers)
+func (r offers) Get() warpdrive.Offers {
+	offers := make(warpdrive.Offers)
 	dir := r.normalizePath("")
 	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
@@ -70,8 +69,8 @@ func (r offers) Get() proto.Offers {
 			r.Println("cannot open", err)
 			return nil
 		}
-		id := proto.OfferId(info.Name())
-		offer := &proto.Offer{}
+		id := warpdrive.OfferId(info.Name())
+		offer := &warpdrive.Offer{}
 		err = gob.NewDecoder(file).Decode(offer)
 		if err != nil {
 			r.Println("cannot decode", path, err)

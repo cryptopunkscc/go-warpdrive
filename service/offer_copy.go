@@ -1,21 +1,21 @@
 package service
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 	"github.com/mitchellh/ioprogress"
 	"io"
 	"time"
 )
 
-func (srv *offer) Copy(offer *proto.Offer) proto.CopyOffer {
+func (srv *offer) Copy(offer *warpdrive.Offer) warpdrive.CopyOffer {
 	srv.Offer = offer
 	return srv
 }
 
 func (srv *offer) From(reader io.Reader) (err error) {
 	offer := srv.Offer
-	offer.Status = proto.StatusUpdated
+	offer.Status = warpdrive.StatusUpdated
 	for i := range offer.Files {
 		if i < offer.Index {
 			continue
@@ -80,7 +80,7 @@ func (srv *offer) fileFrom(reader io.Reader) (err error) {
 }
 
 func (srv *offer) To(writer io.Writer) (err error) {
-	srv.Status = proto.StatusUpdated
+	srv.Status = warpdrive.StatusUpdated
 	for i := range srv.Files {
 		if i < srv.Index {
 			continue

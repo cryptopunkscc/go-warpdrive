@@ -1,7 +1,7 @@
 package file
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,7 +12,7 @@ type files struct {
 	dir string
 }
 
-func Storage(dir string) storage.File {
+func Storage(dir string) warpdrive.File {
 	return &files{dir: dir}
 }
 

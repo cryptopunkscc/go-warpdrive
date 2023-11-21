@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"github.com/cryptopunkscc/astrald/cslq"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"io"
 	"strings"
 )
@@ -21,12 +22,12 @@ func Cli(d *Dispatcher) (err error) {
 	scanner := bufio.NewScanner(d.conn)
 	_, err = d.conn.Write([]byte(prompt))
 	if err != nil {
-		err = Error(err, "Cannot write prompt")
+		err = warpdrive.Error(err, "Cannot write prompt")
 		return
 	}
-	c, err := NewClient(d.api).Connect(id.Identity{}, Port)
+	c, err := NewClient().Connect(id.Identity{}, warpdrive.Port)
 	if err != nil {
-		err = Error(err, "Cannot connect local client")
+		err = warpdrive.Error(err, "Cannot connect local client")
 		return
 	}
 	finish := make(chan struct{})
@@ -39,40 +40,41 @@ func Cli(d *Dispatcher) (err error) {
 		_ = d.conn.Close()
 		_ = c.conn.Close()
 	}()
+	_cslq := cslq.NewEndec(d.conn)
 	for scanner.Scan() {
 		text := scanner.Text()
 		switch text {
 		case "prompt-off":
 			prompt = ""
-			_ = d.cslq.Encode("[c]c", "\n")
+			_ = _cslq.Encodef("[c]c", "\n")
 			continue
 		case "e", "exit":
 			return
 		case "", "h", "help":
 			_ = cliHelp(d.ctx, d.conn, c, nil)
-			_ = d.cslq.Encode("[c]c", prompt)
+			_ = _cslq.Encodef("[c]c", prompt)
 			continue
 		}
 
 		words := strings.Split(text, " ")
 		if len(words) == 0 {
-			_ = d.cslq.Encode("[c]c", prompt)
+			_ = _cslq.Encodef("[c]c", prompt)
 			continue
 		}
 		cmd, args := words[0], words[1:]
-		d.log = NewLogger(d.logPrefix, fmt.Sprintf("(%s)", cmd))
+		d.log = warpdrive.NewLogger(d.logPrefix, fmt.Sprintf("(%s)", cmd))
 		fn, ok := commands[cmd]
 		if ok {
 			err = fn(d.ctx, d.conn, c, args)
 			if err != nil {
-				err = Error(err, "cli command error")
+				err = warpdrive.Error(err, "cli command error")
 				return
 			}
 			//d.Println("OK")
 		} else {
 			d.log.Println("no such cli command", cmd)
 		}
-		_ = d.cslq.Encode("[c]c", prompt)
+		_ = _cslq.Encodef("[c]c", prompt)
 	}
 	return scanner.Err()
 }
@@ -91,10 +93,10 @@ var commands = cmdMap{
 type cmdMap map[string]cmdFunc
 type cmdFunc func(context.Context, io.ReadWriteCloser, Client, []string) error
 
-var filters = map[string]Filter{
-	"all": FilterAll,
-	"in":  FilterIn,
-	"out": FilterOut,
+var filters = map[string]warpdrive.Filter{
+	"all": warpdrive.FilterAll,
+	"in":  warpdrive.FilterIn,
+	"out": warpdrive.FilterOut,
 }
 
 // =========================== Commands ===============================
@@ -131,20 +133,20 @@ func cliSend(ctx context.Context, writer io.ReadWriteCloser, client Client, args
 	if len(args) > 1 {
 		peer = args[1]
 	}
-	peerId, accepted, err := client.CreateOffer(PeerId(peer), args[0])
+	offer, err := client.CreateOffer(warpdrive.PeerId(peer), args[0])
 	if err != nil {
 		return err
 	}
 	status := "delivered"
-	if accepted {
+	if offer.Status == warpdrive.StatusAccepted {
 		status = "accepted"
 	}
-	_, err = fmt.Fprintln(writer, peerId, status)
+	_, err = fmt.Fprintln(writer, offer.Id, status)
 	return
 }
 
 func cliSent(ctx context.Context, writer io.ReadWriteCloser, client Client, _ []string) (err error) {
-	sent, err := client.ListOffers(FilterOut)
+	sent, err := client.ListOffers(warpdrive.FilterOut)
 	if err != nil {
 		return err
 	}
@@ -158,7 +160,7 @@ func cliSent(ctx context.Context, writer io.ReadWriteCloser, client Client, _ []
 }
 
 func cliReceived(ctx context.Context, writer io.ReadWriteCloser, client Client, _ []string) (err error) {
-	received, err := client.ListOffers(FilterIn)
+	received, err := client.ListOffers(warpdrive.FilterIn)
 	if err != nil {
 		return err
 	}
@@ -181,7 +183,7 @@ func cliSubscribe(ctx context.Context, conn io.ReadWriteCloser, client Client, a
 		_, err = fmt.Fprintln(conn, "Invalid filter: ", filter)
 		return
 	}
-	var offers <-chan Offer
+	var offers <-chan warpdrive.Offer
 	offers, err = client.ListenOffers(f)
 	if err != nil {
 		return err
@@ -219,7 +221,7 @@ func cliStatus(ctx context.Context, conn io.ReadWriteCloser, client Client, args
 		_, err = fmt.Fprintln(conn, "Invalid filter: ", filter)
 		return
 	}
-	var events <-chan OfferStatus
+	var events <-chan warpdrive.OfferStatus
 	events, err = client.ListenStatus(f)
 	finish := make(chan struct{})
 	go func() {
@@ -249,7 +251,7 @@ func cliDownload(ctx context.Context, writer io.ReadWriteCloser, client Client, 
 		_, err = fmt.Fprintln(writer, "<offerId>")
 		return
 	}
-	err = client.AcceptOffer(OfferId(args[0]))
+	err = client.AcceptOffer(warpdrive.OfferId(args[0]))
 	if err != nil {
 		return
 	}
@@ -262,7 +264,7 @@ func cliUpdate(ctx context.Context, writer io.ReadWriteCloser, client Client, ar
 		_, err = fmt.Fprintln(writer, "<peerId> <attr> <value>")
 		return
 	}
-	err = client.UpdatePeer(PeerId(args[0]), args[1], args[2])
+	err = client.UpdatePeer(warpdrive.PeerId(args[0]), args[1], args[2])
 	if err != nil {
 		return
 	}
@@ -270,7 +272,7 @@ func cliUpdate(ctx context.Context, writer io.ReadWriteCloser, client Client, ar
 	return
 }
 
-func printFilesRequest(writer io.Writer, offer Offer) (err error) {
+func printFilesRequest(writer io.Writer, offer warpdrive.Offer) (err error) {
 	_, err = fmt.Fprintln(writer, "incoming:", offer.In)
 	_, err = fmt.Fprintln(writer, "peer:", offer.Peer)
 	_, err = fmt.Fprintln(writer, "offer id:", offer.Id)

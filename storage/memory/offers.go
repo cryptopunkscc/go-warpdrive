@@ -1,18 +1,17 @@
 package memory
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 )
 
-type Offer proto.Offers
+type Offer warpdrive.Offers
 
-var _ storage.Offer = Offer{}
+var _ warpdrive.OfferStorage = Offer{}
 
-func (r Offer) Save(offer proto.Offer) {
+func (r Offer) Save(offer warpdrive.Offer) {
 	r[offer.Id] = &offer
 }
 
-func (r Offer) Get() proto.Offers {
-	return proto.Offers(r)
+func (r Offer) Get() warpdrive.Offers {
+	return warpdrive.Offers(r)
 }

@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cryptopunkscc/astrald/cslq"
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"io"
 	"log"
-	"sync"
 )
 
 type Dispatcher struct {
@@ -17,11 +16,9 @@ type Dispatcher struct {
 	authorized bool
 
 	ctx  context.Context
-	api  adapter.Api
 	conn io.ReadWriteCloser
 
-	srv Service
-	job *sync.WaitGroup
+	srv warpdrive.Service
 
 	cslq *cslq.Endec
 	log  *log.Logger
@@ -32,22 +29,18 @@ func NewDispatcher(
 	callerId string,
 	authorized bool,
 	ctx context.Context,
-	api adapter.Api,
 	conn io.ReadWriteCloser,
-	srv Service,
-	job *sync.WaitGroup,
+	srv warpdrive.Service,
 ) *Dispatcher {
 	return &Dispatcher{
 		logPrefix:  logPrefix,
 		callerId:   callerId,
 		authorized: authorized,
 		ctx:        ctx,
-		api:        api,
 		conn:       conn,
 		srv:        srv,
-		job:        job,
 		cslq:       cslq.NewEndec(conn),
-		log:        NewLogger(logPrefix),
+		log:        warpdrive.NewLogger(logPrefix),
 	}
 }
 
@@ -60,12 +53,12 @@ func (d Dispatcher) Serve(
 			d.log.Println("OK")
 		}
 	}
-	if errors.Is(err, errEnded) {
+	if errors.Is(err, warpdrive.ErrEnded) {
 		d.log.Println("End")
 		err = nil
 	}
 	if err != nil {
-		d.log.Println(Error(err, "Failed"))
+		d.log.Println(warpdrive.Error(err, "Failed"))
 	}
 	return errors.Unwrap(err)
 }
@@ -106,17 +99,17 @@ func Dispatch(d *Dispatcher) (err error) {
 }
 
 func nextCommand(d *Dispatcher) (cmd uint8, err error) {
-	d.log = NewLogger(d.logPrefix, "(~)")
-	err = d.cslq.Decode("c", &cmd)
+	d.log = warpdrive.NewLogger(d.logPrefix, "(~)")
+	err = d.cslq.Decodef("c", &cmd)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			err = errEnded
+			err = warpdrive.ErrEnded
 		}
 		return
 	}
-	d.log = NewLogger(d.logPrefix, fmt.Sprintf("(%d)", cmd))
+	d.log = warpdrive.NewLogger(d.logPrefix, fmt.Sprintf("(%d)", cmd))
 	if cmd == cmdClose {
-		err = errEnded
+		err = warpdrive.ErrEnded
 	}
 	return
 }

@@ -3,6 +3,7 @@ package proto
 import (
 	"encoding/json"
 	"github.com/cryptopunkscc/astrald/cslq"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"time"
 )
 
@@ -19,11 +20,11 @@ func (d Dispatcher) Ping(any) (err error) {
 	for {
 		var code byte
 		if err = cslq.Decode(d.conn, "c", &code); err != nil {
-			err = Error(err, "Cannot read ping")
+			err = warpdrive.Error(err, "Cannot read ping")
 			return
 		}
-		if err = d.cslq.Encode("c", code); err != nil {
-			err = Error(err, "Cannot write ping")
+		if err = d.cslq.Encodef("c", code); err != nil {
+			err = warpdrive.Error(err, "Cannot write ping")
 			return
 		}
 		if code == 0 {
@@ -33,47 +34,47 @@ func (d Dispatcher) Ping(any) (err error) {
 }
 
 func (d Dispatcher) Receive(any) (err error) {
-	peerId := PeerId(d.callerId)
+	peerId := warpdrive.PeerId(d.callerId)
 	peer := d.srv.Peer().Get(peerId)
 	// Check if peer is blocked
-	if peer.Mod == PeerModBlock {
+	if peer.Mod == warpdrive.PeerModBlock {
 		d.conn.Close()
 		d.log.Println("Blocked request from", peerId)
 		return
 	}
 	// Read file offer id
-	var offerId OfferId
-	err = d.cslq.Decode("[c]c", &offerId)
+	var offerId warpdrive.OfferId
+	err = d.cslq.Decodef("[c]c", &offerId)
 	if err != nil {
-		err = Error(err, "Cannot read offer id")
+		err = warpdrive.Error(err, "Cannot read offer id")
 		return
 	}
 	// Read files request
-	var files []Info
+	var files []warpdrive.Info
 	err = json.NewDecoder(d.conn).Decode(&files)
 	if err != nil {
-		err = Error(err, "Cannot read files for offer", offerId)
+		err = warpdrive.Error(err, "Cannot read files for offer", offerId)
 		return
 	}
 	// Store incoming offer
 	d.srv.Incoming().Add(offerId, files, peerId)
 	// Auto accept offer if peer is trusted
-	code := OfferAwaiting
-	if peer.Mod == PeerModTrust {
+	code := warpdrive.OfferAwaiting
+	if peer.Mod == warpdrive.PeerModTrust {
 		err = d.Download(offerId)
 		if err != nil {
 			d.log.Println("Cannot auto accept files offer", offerId, err)
 		} else {
-			code = OfferAccepted
+			code = warpdrive.OfferAccepted
 		}
 	}
 	// Send received
-	_ = d.cslq.Encode("c", code)
+	_ = d.cslq.Encodef("c", code)
 	return
 }
 
 func (d Dispatcher) Upload(
-	offerId OfferId,
+	offerId warpdrive.OfferId,
 	index int,
 	offset int64,
 ) (err error) {
@@ -82,7 +83,7 @@ func (d Dispatcher) Upload(
 	// Obtain setup service with offer id
 	offer := srv.Get(offerId)
 	if offer == nil {
-		err = Error(nil, "Cannot find offer with id", offerId)
+		err = warpdrive.Error(nil, "Cannot find offer with id", offerId)
 		return
 	}
 
@@ -90,9 +91,9 @@ func (d Dispatcher) Upload(
 	srv.Accept(offer)
 
 	// Send confirmation
-	err = d.cslq.Encode("c", 0)
+	err = d.cslq.Encodef("c", 0)
 	if err != nil {
-		err = Error(err, "Cannot send confirmation")
+		err = warpdrive.Error(err, "Cannot send confirmation")
 		return
 	}
 
@@ -106,7 +107,7 @@ func (d Dispatcher) Upload(
 		offer.Progress = offset
 		err := srv.Copy(offer).To(d.conn)
 		if err != nil {
-			err = Error(err, "Cannot upload files")
+			err = warpdrive.Error(err, "Cannot upload files")
 		}
 		finish <- err
 	}()
@@ -114,8 +115,8 @@ func (d Dispatcher) Upload(
 	// Read OK
 	go func() {
 		var code byte
-		if err := d.cslq.Decode("c", &code); err != nil {
-			err = Error(err, "Cannot read ok")
+		if err := d.cslq.Decodef("c", &code); err != nil {
+			err = warpdrive.Error(err, "Cannot read ok")
 			d.log.Println(err)
 			_ = d.conn.Close()
 		}
@@ -123,7 +124,7 @@ func (d Dispatcher) Upload(
 
 	// Ensure the status will be updated
 	func() {
-		d.job.Add(1)
+		d.srv.Job().Add(1)
 		select {
 		case err = <-finish:
 		case <-d.ctx.Done():
@@ -132,7 +133,7 @@ func (d Dispatcher) Upload(
 		}
 		srv.Finish(offer, err)
 		time.Sleep(200)
-		d.job.Done()
+		d.srv.Job().Done()
 	}()
 	return
 }

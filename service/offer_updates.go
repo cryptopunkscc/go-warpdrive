@@ -3,14 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"sort"
 	"time"
 )
 
-type OfferUpdates Component
-
-func (c OfferUpdates) Start(ctx context.Context) <-chan struct{} {
+func (c *Component) Start(ctx context.Context) <-chan struct{} {
 	receive := make(chan interface{}, 1024)
 	c.Channel.Offers = receive
 	finish := make(chan struct{})
@@ -63,7 +61,7 @@ func (c OfferUpdates) Start(ctx context.Context) <-chan struct{} {
 
 	go func() {
 		<-ctx.Done()
-		c.Job.Wait()
+		c.job.Wait()
 		time.Sleep(200 * time.Millisecond)
 		close(receive)
 		<-finish
@@ -72,7 +70,7 @@ func (c OfferUpdates) Start(ctx context.Context) <-chan struct{} {
 	return finish
 }
 
-func (c OfferUpdates) processUpdates(buffer offerUpdatesBuffer) {
+func (c *Component) processUpdates(buffer offerUpdatesBuffer) {
 	var updates []*offer
 	for _, b := range buffer {
 		for _, next := range b {
@@ -111,7 +109,7 @@ func (c OfferUpdates) processUpdates(buffer offerUpdatesBuffer) {
 	c.Sys.Notify(arr)
 }
 
-type offerUpdatesBuffer map[bool]map[proto.OfferId]*offer
+type offerUpdatesBuffer map[bool]map[warpdrive.OfferId]*offer
 
 func newOfferUpdatesBuffer() offerUpdatesBuffer {
 	return offerUpdatesBuffer{true: {}, false: {}}
@@ -129,12 +127,12 @@ func (a byUpdateTime) Less(i, j int) bool { return a[i].Update < a[j].Update }
 
 func (srv *offer) forward() {
 	srv.notify(srv.OfferStatus, srv.StatusSubscriptions())
-	if srv.Status == proto.StatusAwaiting {
+	if srv.Status == warpdrive.StatusAwaiting {
 		srv.notify(srv.Offer, srv.OfferSubscriptions())
 	}
 }
 
-func (srv *offer) notify(data interface{}, subscribers *proto.Subscriptions) {
+func (srv *offer) notify(data interface{}, subscribers *warpdrive.Subscriptions) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		srv.Println("Cannot create json from data", data, err)

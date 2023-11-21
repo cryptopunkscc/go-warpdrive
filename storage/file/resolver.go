@@ -1,8 +1,7 @@
 package file
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"io"
 	"io/fs"
 	"os"
@@ -10,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-var _ storage.FileResolver = Resolver{}
+var _ warpdrive.FileResolver = Resolver{}
 
 type Resolver struct{}
 
@@ -27,9 +26,9 @@ func (s Resolver) Reader(path string, offset int64) (r io.ReadCloser, err error)
 	return
 }
 
-func (s Resolver) Info(uri string) (files []proto.Info, err error) {
+func (s Resolver) Info(uri string) (files []warpdrive.Info, err error) {
 	fn := func(uri string, info fs.FileInfo, err error) error {
-		files = append(files, proto.Info{
+		files = append(files, warpdrive.Info{
 			Uri:   uri,
 			Path:  uri,
 			Size:  info.Size(),

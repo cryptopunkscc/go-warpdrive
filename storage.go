@@ -1,20 +1,19 @@
-package storage
+package warpdrive
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"io"
 	"os"
 )
 
-type Offer interface {
-	Save(offer proto.Offer)
-	Get() proto.Offers
+type OfferStorage interface {
+	Save(offer Offer)
+	Get() Offers
 }
 
-type Peer interface {
-	Save(peers []proto.Peer)
-	Get() proto.Peers
-	List() []proto.Peer
+type PeerStorage interface {
+	Save(peers []Peer)
+	Get() Peers
+	List() []Peer
 }
 
 type File interface {
@@ -27,5 +26,5 @@ type File interface {
 // Required for platforms where direct access to the file system is restricted.
 type FileResolver interface {
 	Reader(uri string, offset int64) (io.ReadCloser, error)
-	Info(uri string) (files []proto.Info, err error)
+	Info(uri string) (files []Info, err error)
 }

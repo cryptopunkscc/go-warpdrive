@@ -1,26 +1,25 @@
 package memory
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 )
 
-type Peers proto.Peers
+type Peers warpdrive.Peers
 
-var _ storage.Peer = Peers{}
+var _ warpdrive.PeerStorage = Peers{}
 
-func (r Peers) Save(peers []proto.Peer) {
+func (r Peers) Save(peers []warpdrive.Peer) {
 	for _, peer := range peers {
 		p := peer
 		r[peer.Id] = &p
 	}
 }
 
-func (r Peers) Get() proto.Peers {
-	return proto.Peers(r)
+func (r Peers) Get() warpdrive.Peers {
+	return warpdrive.Peers(r)
 }
 
-func (r Peers) List() (peers []proto.Peer) {
+func (r Peers) List() (peers []warpdrive.Peer) {
 	p := r.Get()
 	for _, peer := range p {
 		peers = append(peers, *peer)

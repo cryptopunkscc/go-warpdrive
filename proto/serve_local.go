@@ -1,95 +1,100 @@
 package proto
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/cryptopunkscc/astrald/auth/id"
+	"github.com/cryptopunkscc/go-warpdrive"
+	"io"
+	"log"
 	"time"
 )
 
-func (d Dispatcher) CreateOffer(peerId PeerId, filePath string) (err error) {
+func (d Dispatcher) CreateOffer(peerId warpdrive.PeerId, filePath string) (err error) {
 	// Get files info
 	files, err := d.srv.File().Info(filePath)
 	if err != nil {
-		err = Error(err, "Cannot get files info")
+		err = warpdrive.Error(err, "Cannot get files info")
 		return
 	}
 
 	// Parse identity
 	identity, err := id.ParsePublicKeyHex(string(peerId))
 	if err != nil {
-		err = Error(err, "Cannot parse peer id")
+		err = warpdrive.Error(err, "Cannot parse peer id")
 		return
 	}
 
 	// Connect to remote client
-	client, err := NewClient(d.api).Connect(identity, Port)
+	client, err := NewClient().Connect(identity, warpdrive.Port)
 	if err != nil {
-		err = Error(err, "Cannot connect to remote", peerId)
+		err = warpdrive.Error(err, "Cannot connect to remote", peerId)
 		return
 	}
 
 	// Send file to recipient service
-	offerId, code, err := client.SendOffer(files)
+	offerId := warpdrive.NewOfferId()
+	code, err := client.SendOffer(offerId, files)
 	_ = client.Close()
 	if err != nil {
-		err = Error(err, "Cannot send file")
+		err = warpdrive.Error(err, "Cannot send file")
 		return
 	}
 
 	d.srv.Outgoing().Add(offerId, files, peerId)
 
 	// Write id to sender
-	err = d.cslq.Encode("[c]c c", offerId, code)
+	err = d.cslq.Encodef("[c]c c", offerId, code)
 	if err != nil {
-		err = Error(err, "Cannot send create offer result", offerId)
+		err = warpdrive.Error(err, "Cannot send create offer result", offerId)
 		return
 	}
 	d.log.Println(filePath, "offer sent to", peerId)
 	return
 }
 
-func (d Dispatcher) ListOffers(filter Filter) (err error) {
+func (d Dispatcher) ListOffers(filter warpdrive.Filter) (err error) {
 	// Collect file offers
-	offers := d.filterOffers(filter)
+	offers := warpdrive.FilterOffers(d.srv, filter)
 	d.log.Println("Filter", filter)
 	// Send filtered file offers
 	if err = json.NewEncoder(d.conn).Encode(offers); err != nil {
-		err = Error(err, "Cannot send incoming offers")
+		err = warpdrive.Error(err, "Cannot send incoming offers")
 		return
 	}
 	return
 }
 
-func (d Dispatcher) AcceptOffer(offerId OfferId) (err error) {
+func (d Dispatcher) AcceptOffer(offerId warpdrive.OfferId) (err error) {
 	// Download offer
 	d.log.Println("Accepted incoming files", offerId)
 	err = d.Download(offerId)
 	if err != nil {
-		err = Error(err, "Cannot download incoming files", offerId)
+		err = warpdrive.Error(err, "Cannot download incoming files", offerId)
 		return
 	}
 	// Send ok
-	err = d.cslq.Encode("c", 0)
+	err = d.cslq.Encodef("c", 0)
 	if err != nil {
-		err = Error(err, "Cannot send ok")
+		err = warpdrive.Error(err, "Cannot send ok")
 		return
 	}
 	return
 }
 
-func (d Dispatcher) Download(offerId OfferId) (err error) {
+func (d Dispatcher) Download(offerId warpdrive.OfferId) (err error) {
 	// Get incoming offer service for offer id
 	srv := d.srv.Incoming()
 	offer := srv.Get(offerId)
 	if offer == nil {
-		err = Error(nil, "Cannot find incoming file")
+		err = warpdrive.Error(nil, "Cannot find incoming file")
 		return
 	}
 
 	// parse peer id
 	peerId, err := id.ParsePublicKeyHex(string(offer.Peer))
 	if err != nil {
-		err = Error(err, "Cannot parse peer id", offer.Peer)
+		err = warpdrive.Error(err, "Cannot parse peer id", offer.Peer)
 		return
 	}
 
@@ -97,14 +102,14 @@ func (d Dispatcher) Download(offerId OfferId) (err error) {
 	srv.Accept(offer)
 
 	// Connect to remote warpdrive
-	client, err := NewClient(d.api).Connect(peerId, Port)
+	client, err := NewClient().Connect(peerId, warpdrive.Port)
 	if err != nil {
 		return
 	}
 
 	// Request download
 	if err = client.Download(offerId, offer.Index, offer.Progress); err != nil {
-		err = Error(err, "Cannot download offer")
+		err = warpdrive.Error(err, "Cannot download offer")
 		return err
 	}
 
@@ -112,7 +117,7 @@ func (d Dispatcher) Download(offerId OfferId) (err error) {
 
 	// Ensure the status will be updated
 	go func() {
-		d.job.Add(1)
+		d.srv.Job().Add(1)
 		select {
 		case err = <-finish:
 		case <-d.ctx.Done():
@@ -120,12 +125,12 @@ func (d Dispatcher) Download(offerId OfferId) (err error) {
 			err = <-finish
 		}
 		if err != nil {
-			d.log.Println(Error(err, "Failed"))
+			d.log.Println(warpdrive.Error(err, "Failed"))
 		}
 		_ = client.Close()
 		srv.Finish(offer, err)
 		time.Sleep(200)
-		d.job.Done()
+		d.srv.Job().Done()
 	}()
 
 	// download files in background
@@ -133,12 +138,12 @@ func (d Dispatcher) Download(offerId OfferId) (err error) {
 		defer close(finish)
 		// Copy files from connection to storage
 		if err = srv.Copy(offer).From(client.conn); err != nil {
-			finish <- Error(err, "Cannot download files")
+			finish <- warpdrive.Error(err, "Cannot download files")
 			return
 		}
 		// Send OK
-		if err = client.cslq.Encode("c", 0); err != nil {
-			finish <- Error(err, "Cannot send ok")
+		if err = client.cslq.Encodef("c", 0); err != nil {
+			finish <- warpdrive.Error(err, "Cannot send ok")
 			return
 		}
 		finish <- nil
@@ -151,27 +156,80 @@ func (d Dispatcher) ListPeers(any) (err error) {
 	peers := d.srv.Peer().List()
 	// Send peers
 	if err = json.NewEncoder(d.conn).Encode(peers); err != nil {
-		err = Error(err, "Cannot send peers")
+		err = warpdrive.Error(err, "Cannot send peers")
 		return
 	}
 	return
 }
 
-func (d Dispatcher) ListenStatus(filter Filter) (err error) {
-	unsub := d.filterSubscribe(filter, OfferService.StatusSubscriptions)
+func (d Dispatcher) ListenStatus(filter warpdrive.Filter) (err error) {
+	unsub := d.filterSubscribe(filter, warpdrive.OfferService.StatusSubscriptions)
 	defer unsub()
 	// Wait for close
 	var code byte
-	err = d.cslq.Decode("c", &code)
+	err = d.cslq.Decodef("c", &code)
 	return
 }
 
-func (d Dispatcher) ListenOffers(filter Filter) (err error) {
-	unsub := d.filterSubscribe(filter, OfferService.OfferSubscriptions)
+func (d Dispatcher) ListenOffers(filter warpdrive.Filter) (err error) {
+	unsub := d.filterSubscribe(filter, warpdrive.OfferService.OfferSubscriptions)
 	defer unsub()
 	// Wait for close
 	var code byte
-	err = d.cslq.Decode("c", &code)
+	err = d.cslq.Decodef("c", &code)
+	return
+}
+func (d Dispatcher) filterSubscribe(
+	filter warpdrive.Filter,
+	get func(service warpdrive.OfferService) *warpdrive.Subscriptions,
+) (unsub warpdrive.Unsubscribe) {
+	c := NewListener(d.ctx, d.conn)
+	var unsubIn warpdrive.Unsubscribe = func() {}
+	var unsubOut warpdrive.Unsubscribe = func() {}
+	switch filter {
+	case warpdrive.FilterIn:
+		unsubIn = get(d.srv.Incoming()).Subscribe(c)
+	case warpdrive.FilterOut:
+		unsubOut = get(d.srv.Outgoing()).Subscribe(c)
+	default:
+		unsubIn = get(d.srv.Incoming()).Subscribe(c)
+		unsubOut = get(d.srv.Outgoing()).Subscribe(c)
+	}
+	return func() {
+		unsubIn()
+		unsubOut()
+		close(c)
+	}
+}
+func NewListener(ctx context.Context, w io.WriteCloser) (listener warpdrive.Listener) {
+	c := make(chan interface{}, 1024)
+	listener = c
+	e := json.NewEncoder(w)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				_ = w.Close()
+				return
+			case i, ok := <-c:
+				if !ok {
+					return
+				}
+				var err error
+				switch v := i.(type) {
+				case []byte:
+					v = append(v, '\n')
+					_, err = w.Write(v)
+				default:
+					err = e.Encode(i)
+				}
+				if err != nil {
+					log.Println("Cannot write", err)
+					return
+				}
+			}
+		}
+	}()
 	return
 }
 
@@ -180,17 +238,17 @@ func (d Dispatcher) UpdatePeer(any) (err error) {
 	// Fixme refactor to cslq
 	var req []string
 	if err = json.NewDecoder(d.conn).Decode(&req); err != nil {
-		err = Error(err, "Cannot read peer update")
+		err = warpdrive.Error(err, "Cannot read peer update")
 		return
 	}
 	peerId := req[0]
 	attr := req[1]
 	value := req[2]
 	// Update peer
-	d.srv.Peer().Update(PeerId(peerId), attr, value)
+	d.srv.Peer().Update(warpdrive.PeerId(peerId), attr, value)
 	// Send OK
-	if err = d.cslq.Encode("c", 0); err != nil {
-		err = Error(err, "Cannot send ok")
+	if err = d.cslq.Encodef("c", 0); err != nil {
+		err = warpdrive.Error(err, "Cannot send ok")
 		return
 	}
 	return

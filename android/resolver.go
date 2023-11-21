@@ -1,10 +1,8 @@
 package android
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/android/content"
-	warpdrive "github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"path"
 )
 
@@ -12,10 +10,8 @@ type resolver struct {
 	content.Client
 }
 
-func NewResolver(api adapter.Api) storage.FileResolver {
-	r := &resolver{}
-	r.Api = api
-	return r
+func NewResolver() warpdrive.FileResolver {
+	return &resolver{}
 }
 
 func (c resolver) Info(uri string) (files []warpdrive.Info, err error) {

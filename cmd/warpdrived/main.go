@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/cryptopunkscc/go-warpdrive/adapter/apphost"
 	"log"
 	"os"
 	"os/signal"
@@ -31,7 +30,7 @@ func main() {
 		}
 	}()
 
-	err := Server().Run(ctx, apphost.Adapter{})
+	err := Server().Run(ctx)
 
 	code := 0
 	if err != nil {

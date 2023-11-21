@@ -3,35 +3,35 @@ package proto
 import (
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"github.com/cryptopunkscc/astrald/cslq"
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/astrald/lib/astral"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"io"
 	"log"
 )
 
 type Client struct {
-	api       adapter.Api
 	conn      io.ReadWriteCloser
 	cslq      *cslq.Endec
 	log       *log.Logger
 	localNode string
 }
 
-func NewClient(api adapter.Api) Client {
-	return Client{log: log.Default(), api: api}
+func NewClient() Client {
+	return Client{log: log.Default()}
 }
 
 // Connect to warpdrive service
 func (c Client) Connect(identity id.Identity, port string) (client Client, err error) {
-	c.log = NewLogger("[CLIENT]", port)
+	c.log = warpdrive.NewLogger("[CLIENT]", port)
 	// Resolve local id
-	localId, err := c.api.Resolve("localnode")
+	localId, err := astral.Resolve("localnode")
 	if err != nil {
 		c.log.Println("Cannot resolve local node id", err)
 		return
 	}
 	c.localNode = localId.String()
 	// Connect to local service
-	c.conn, err = c.api.Query(identity, port)
+	c.conn, err = astral.Query(identity, port)
 	if err != nil {
 		c.log.Println("Cannot connect to service", err)
 		return
@@ -42,7 +42,7 @@ func (c Client) Connect(identity id.Identity, port string) (client Client, err e
 }
 
 func (c Client) Close() (err error) {
-	err = c.cslq.Encode("c", cmdClose)
+	err = c.cslq.Encodef("c", cmdClose)
 	_ = c.conn.Close()
 	return
 }

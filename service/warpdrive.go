@@ -1,17 +1,16 @@
 package service
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 	"github.com/cryptopunkscc/go-warpdrive/storage/memory"
 )
 
-var _ proto.Service = Component{}
+var _ warpdrive.Service = &Component{}
 
-func (w Component) Incoming() proto.OfferService {
-	c := w
+func (c *Component) Incoming() warpdrive.OfferService {
 	return &offer{
-		Component:  c,
+		Component:  *c,
 		mu:         &c.Mutex.Incoming,
 		mem:        memory.Offer(c.Cache.Incoming),
 		file:       file.Incoming(c.Logger, c.RepositoryDir),
@@ -21,10 +20,9 @@ func (w Component) Incoming() proto.OfferService {
 	}
 }
 
-func (w Component) Outgoing() proto.OfferService {
-	c := w
+func (c *Component) Outgoing() warpdrive.OfferService {
 	return &offer{
-		Component:  c,
+		Component:  *c,
 		mu:         &c.Mutex.Outgoing,
 		mem:        memory.Offer(c.Cache.Outgoing),
 		file:       file.Outgoing(c.Logger, c.RepositoryDir),
@@ -33,10 +31,10 @@ func (w Component) Outgoing() proto.OfferService {
 	}
 }
 
-func (w Component) Peer() proto.PeerService {
-	return peer(w)
+func (c *Component) Peer() warpdrive.PeerService {
+	return peer(*c)
 }
 
-func (w Component) File() proto.FileService {
-	return w.FileResolver
+func (c *Component) File() warpdrive.FileService {
+	return c.FileResolver
 }

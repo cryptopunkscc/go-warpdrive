@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/cryptopunkscc/go-warpdrive/adapter/apphost"
+	"github.com/cryptopunkscc/astrald/lib/astral"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"io"
 	"log"
@@ -20,12 +21,10 @@ func main() {
 	// Set up app execution context
 	ctx, shutdown := context.WithCancel(context.Background())
 
-	api := apphost.Adapter{}
-
 	// resolve identity
-	identity, err := api.Resolve("localnode")
+	identity, err := astral.Resolve("localnode")
 	if err != nil {
-		log.Panicln(proto.Error(err, "cannot resolve local node id"))
+		log.Panicln(warpdrive.Error(err, "cannot resolve local node id"))
 		return
 	}
 
@@ -40,9 +39,7 @@ func main() {
 		identity.String(),
 		true,
 		ctx,
-		api,
 		rw,
-		nil,
 		nil,
 	)
 	// run cli
@@ -62,14 +59,14 @@ func main() {
 		args := strings.Join(os.Args[1:], " ")
 		_, err := fmt.Fprint(pw, "prompt-off", "\n", args, "\n", "exit", "\n")
 		if err != nil {
-			log.Panicln(proto.Error(err, "cannot write args"))
+			log.Panicln(warpdrive.Error(err, "cannot write args"))
 		}
 	case false:
 		// switch to interactive mode, pass std in to cli
 		go func() {
 			_, err := io.Copy(pw, os.Stdin)
 			if err != nil {
-				log.Panicln(proto.Error(err, "cannot copy std in"))
+				log.Panicln(warpdrive.Error(err, "cannot copy std in"))
 			}
 		}()
 	}

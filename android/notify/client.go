@@ -4,17 +4,16 @@ import (
 	"encoding/json"
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"github.com/cryptopunkscc/astrald/cslq"
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
+	"github.com/cryptopunkscc/astrald/lib/astral"
 	"log"
 )
 
 type Client struct {
-	adapter.Api
 	Identity id.Identity
 }
 
 func (c Client) Create(channel Channel) (err error) {
-	conn, err := c.Query(c.Identity, PortChannel)
+	conn, err := astral.Query(c.Identity, PortChannel)
 	if err != nil {
 		return
 	}
@@ -28,7 +27,7 @@ func (c Client) Create(channel Channel) (err error) {
 }
 
 func (c Client) Notify(notifications ...Notification) (err error) {
-	conn, err := c.Query(c.Identity, Port)
+	conn, err := astral.Query(c.Identity, Port)
 	if err != nil {
 		return
 	}
@@ -42,7 +41,7 @@ func (c Client) Notify(notifications ...Notification) (err error) {
 }
 
 func (c Client) Notifier() (dispatch Notify) {
-	conn, err := c.Query(c.Identity, Port)
+	conn, err := astral.Query(c.Identity, Port)
 	if err != nil {
 		return
 	}

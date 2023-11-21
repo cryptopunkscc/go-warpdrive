@@ -1,9 +1,8 @@
-package warpdrived
+package service
 
 import (
 	"fmt"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/service"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 	"log"
 	"os"
@@ -11,31 +10,29 @@ import (
 	"sync"
 )
 
-func setupCore(c *service.Component) {
+func NewComponent() (c Component) {
 	// Defaults
 	c.Logger = log.Default()
-	c.Job = &sync.WaitGroup{}
+	c.job = &sync.WaitGroup{}
 	if c.Sys == nil {
-		c.Sys = &service.Sys{}
+		c.Sys = &Sys{}
 	}
-	c.Channel = &service.Channel{}
-	c.Cache = &service.Cache{
-		Mutex:    &service.Mutex{},
-		Incoming: proto.Offers{},
-		Outgoing: proto.Offers{},
-		Peers:    proto.Peers{},
+	c.Channel = &Channel{}
+	c.Cache = &Cache{
+		Mutex:    &Mutex{},
+		Incoming: warpdrive.Offers{},
+		Outgoing: warpdrive.Offers{},
+		Peers:    warpdrive.Peers{},
 	}
-	c.Observers = &service.Observers{
-		IncomingOffers: proto.NewSubscriptions(),
-		IncomingStatus: proto.NewSubscriptions(),
-		OutgoingOffers: proto.NewSubscriptions(),
-		OutgoingStatus: proto.NewSubscriptions(),
+	c.Observers = &Observers{
+		IncomingOffers: warpdrive.NewSubscriptions(),
+		IncomingStatus: warpdrive.NewSubscriptions(),
+		OutgoingOffers: warpdrive.NewSubscriptions(),
+		OutgoingStatus: warpdrive.NewSubscriptions(),
 	}
 
 	// Platform
-	if c.Platform == "" {
-		c.Platform = service.PlatformDefault
-	}
+	c.Platform = PlatformDefault
 
 	// Storage
 	c.StorageDir = storageDir()
@@ -53,16 +50,11 @@ func setupCore(c *service.Component) {
 	c.Cache.Outgoing = file.Outgoing(c.Logger, c.RepositoryDir).Get()
 
 	// Notify
-	if c.Sys.Notify == nil {
-		log.Println("WARNING: using stub notify") // TODO make better log
-		c.Sys.Notify = func(_ []service.Notification) {}
-	}
+	c.Sys.Notify = func(_ []Notification) {}
 
 	// Resolver
-	if c.FileResolver == nil {
-		log.Println("WARNING: using default file.Resolver") // TODO make better log
-		c.FileResolver = &file.Resolver{}
-	}
+	c.FileResolver = file.Resolver{}
+	return
 }
 
 func storageDir() string {
