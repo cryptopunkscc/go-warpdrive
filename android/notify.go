@@ -2,29 +2,37 @@ package android
 
 import (
 	"fmt"
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
-	android "github.com/cryptopunkscc/go-warpdrive/android/notify"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/service"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"log"
 	"strconv"
 	"strings"
 )
 
 type notifier struct {
-	android.Client
-	notify        android.Notify
+	client        notify.ApiClient
+	notify        notify.Notify
 	inChannel     android.Channel
 	outChannel    android.Channel
 	inGroup       android.Notification
 	outGroup      android.Notification
 	lastId        int
-	notifications map[proto.OfferId]*android.Notification
+	notifications map[warpdrive.OfferId]*android.Notification
 }
 
-func NewNotifier(api adapter.Api) service.Notify {
-	m := &notifier{}
-	m.Api = api
+func CreateNotify(client notify.ApiClient) warpdrive.CreateNotify {
+	return func() warpdrive.Notify {
+		n := &notifier{client: client}
+		if c, err := n.createNotify(); err != nil {
+			panic(err)
+		} else {
+			return c
+		}
+	}
+}
+
+func (m *notifier) createNotify() (s warpdrive.Notify, err error) {
 	m.inChannel = android.Channel{
 		Id:         "warpdrive-in",
 		Name:       "Warp Drive incoming",
@@ -52,43 +60,48 @@ func NewNotifier(api adapter.Api) service.Notify {
 	m.outGroup.ChannelId = m.outChannel.Id
 	m.outGroup.Group = "out"
 
-	m.notifications = map[proto.OfferId]*android.Notification{}
+	m.notifications = map[warpdrive.OfferId]*android.Notification{}
 
-	m.createChannels()
-
-	return m.Notify
+	if m, err = m.createChannels(); m != nil {
+		s = m.Notify
+	}
+	return
 }
 
-func (m *notifier) createChannels() *notifier {
-
-	err := m.Create(m.inChannel)
+func (m *notifier) createChannels() (n *notifier, err error) {
+	err = m.client.Connect()
 	if err != nil {
-		log.Println("Cannot create incoming notification channel", err)
-		return nil
+		err = fmt.Errorf("cannot connect notification channel: %v", err)
+		return
 	}
-	err = m.Create(m.outChannel)
+	err = m.client.Create(m.inChannel)
 	if err != nil {
-		log.Println("Cannot create outgoing notification channel", err)
-		return nil
+		err = fmt.Errorf("cannot create incoming notification channel: %v", err)
+		return
 	}
-	m.notify = m.Notifier()
-	return m
+	err = m.client.Create(m.outChannel)
+	if err != nil {
+		err = fmt.Errorf("cannot create outgoing notification channel: %v", err)
+		return
+	}
+	m.notify = notify.Notifier(m.client)
+	return m, nil
 }
 
-func (m *notifier) Notify(notifications []service.Notification) {
+func (m *notifier) Notify(notifications []warpdrive.Notification) {
 	// Update notifications cache
 	for _, n := range notifications {
 		switch n.Status {
-		case proto.StatusAwaiting:
-			if n.In && n.Peer.Mod == proto.PeerModAsk {
+		case warpdrive.StatusAwaiting:
+			if n.In && n.Peer.Mod == warpdrive.PeerModAsk {
 				m.create(n)
 			}
-		case proto.StatusUpdated:
+		case warpdrive.StatusUpdated:
 			m.progress(n)
 		case
-			proto.StatusFailed,
-			proto.StatusRejected,
-			proto.StatusCompleted:
+			warpdrive.StatusFailed,
+			warpdrive.StatusRejected,
+			warpdrive.StatusCompleted:
 			m.finish(n)
 		}
 	}
@@ -119,15 +132,15 @@ func (m *notifier) Notify(notifications []service.Notification) {
 	for _, n := range notifications {
 		switch n.Status {
 		case
-			proto.StatusFailed,
-			proto.StatusRejected,
-			proto.StatusCompleted:
+			warpdrive.StatusFailed,
+			warpdrive.StatusRejected,
+			warpdrive.StatusCompleted:
 			delete(m.notifications, n.Offer.Id)
 		}
 	}
 }
 
-func (m *notifier) create(an service.Notification) (n *android.Notification) {
+func (m *notifier) create(an warpdrive.Notification) (n *android.Notification) {
 	channel := m.outChannel
 	n = &android.Notification{
 		Id:            m.nextId(),
@@ -190,7 +203,7 @@ func (m *notifier) create(an service.Notification) (n *android.Notification) {
 	return
 }
 
-func (m *notifier) progress(an service.Notification) {
+func (m *notifier) progress(an warpdrive.Notification) {
 	n := m.notifications[an.Offer.Id]
 	if n == nil {
 		n = m.create(an)
@@ -211,7 +224,7 @@ func (m *notifier) progress(an service.Notification) {
 	m.notifications[an.Offer.Id] = n
 }
 
-func (m *notifier) finish(an service.Notification) {
+func (m *notifier) finish(an warpdrive.Notification) {
 	n := m.notifications[an.Offer.Id]
 	if n == nil {
 		n = m.create(an)
@@ -229,14 +242,14 @@ func (m *notifier) finish(an service.Notification) {
 	m.notifications[an.Offer.Id] = n
 }
 
-func titlePrefix(an service.Notification) string {
+func titlePrefix(an warpdrive.Notification) string {
 	if an.In {
 		return "Downloading from"
 	}
 	return "Uploading to"
 }
 
-func formatPeerName(an service.Notification) (name string) {
+func formatPeerName(an warpdrive.Notification) (name string) {
 	name = an.Peer.Alias
 	if name == "" && len(an.Peer.Id) == 66 {
 		shortId := string(an.Peer.Id)[58:66]
@@ -248,7 +261,7 @@ func formatPeerName(an service.Notification) (name string) {
 	return
 }
 
-func formatTransferredSize(an service.Notification) (str string) {
+func formatTransferredSize(an warpdrive.Notification) (str string) {
 	str = ByteCountSI(sumSize(an))
 	if an.Index < len(an.Files) {
 		str += " / " + ByteCountSI(totalSize(an))
@@ -256,14 +269,14 @@ func formatTransferredSize(an service.Notification) (str string) {
 	return
 }
 
-func totalSize(an service.Notification) (size int64) {
+func totalSize(an warpdrive.Notification) (size int64) {
 	for _, file := range an.Files {
 		size += file.Size
 	}
 	return
 }
 
-func sumSize(an service.Notification) (size int64) {
+func sumSize(an warpdrive.Notification) (size int64) {
 	for i := 0; i < an.Index; i++ {
 		size += an.Files[i].Size
 	}

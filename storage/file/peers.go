@@ -2,26 +2,25 @@ package file
 
 import (
 	"encoding/gob"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"log"
 	"os"
 	"path/filepath"
 )
-
-func Peers(logger *log.Logger, repositoryDir string) storage.Peer {
-	return peers{
-		logger,
-		filepath.Join(repositoryDir, "peers"),
-	}
-}
 
 type peers struct {
 	*log.Logger
 	path string
 }
 
-func (r peers) Save(peers []proto.Peer) {
+func NewPeersStorage(logger *log.Logger, repositoryDir string) warpdrive.PeerStorage {
+	return peers{
+		logger,
+		filepath.Join(repositoryDir, "peers"),
+	}
+}
+
+func (r peers) Save(peers []warpdrive.Peer) {
 	file, err := os.OpenFile(r.path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0700)
 	if err != nil {
 		r.Panicln("cannot open peers file", err)
@@ -32,9 +31,9 @@ func (r peers) Save(peers []proto.Peer) {
 	}
 }
 
-func (r peers) Get() (peers proto.Peers) {
+func (r peers) Get() (peers warpdrive.Peers) {
 	list := r.List()
-	peers = proto.Peers{}
+	peers = warpdrive.Peers{}
 	for _, peer := range list {
 		p := peer
 		peers[peer.Id] = &p
@@ -42,7 +41,7 @@ func (r peers) Get() (peers proto.Peers) {
 	return
 }
 
-func (r peers) List() (peers []proto.Peer) {
+func (r peers) List() (peers []warpdrive.Peer) {
 	file, err := os.Open(r.path)
 	if err != nil {
 		if os.IsNotExist(err) {

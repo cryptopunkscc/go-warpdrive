@@ -1,10 +1,9 @@
 package android
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
-	"github.com/cryptopunkscc/go-warpdrive/android/content"
-	warpdrive "github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android/content"
+	"github.com/cryptopunkscc/go-warpdrive"
 	"path"
 )
 
@@ -12,10 +11,8 @@ type resolver struct {
 	content.Client
 }
 
-func NewResolver(api adapter.Api) storage.FileResolver {
-	r := &resolver{}
-	r.Api = api
-	return r
+func NewResolver() warpdrive.FileResolver {
+	return &resolver{}
 }
 
 func (c resolver) Info(uri string) (files []warpdrive.Info, err error) {
@@ -34,7 +31,7 @@ func (c resolver) Info(uri string) (files []warpdrive.Info, err error) {
 	return
 }
 
-func resolveName(i content.Info) string {
+func resolveName(i android.Info) string {
 	switch {
 	case i.Name != "":
 		return i.Name

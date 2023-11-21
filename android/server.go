@@ -1,23 +1,21 @@
 package android
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/adapter"
-	"github.com/cryptopunkscc/go-warpdrive/server"
+	"context"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
+	"github.com/cryptopunkscc/go-warpdrive/jrpc"
 	"github.com/cryptopunkscc/go-warpdrive/service"
-	"path/filepath"
+	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"log"
 )
 
-func Server(dir string, api adapter.Api) *warpdrived.Server {
-	return &warpdrived.Server{
-		Component: service.Component{
-			Config: service.Config{
-				Platform:      service.PlatformAndroid,
-				RepositoryDir: filepath.Join(dir, "warpdrive"),
-			},
-			Sys: &service.Sys{
-				Notify: NewNotifier(api),
-			},
-			FileResolver: NewResolver(api),
-		},
-	}
+func Server(ctx context.Context, cache string, store string) error {
+	logger := log.New(log.Writer(), "[warpdrive] ", 0)
+	factory := storage.NewFactory(logger, cache, store)
+	factory.FileResolver = NewResolver()
+	createNotify := CreateNotify(notify.NewClient())
+	srv := service.Start(ctx, logger, createNotify, factory)
+	err := jrpc.Start(ctx, logger, srv)
+	<-srv.Done()
+	return err
 }

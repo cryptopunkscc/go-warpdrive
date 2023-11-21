@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/cryptopunkscc/go-warpdrive/adapter/apphost"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive"
+	"github.com/cryptopunkscc/go-warpdrive/jrpc"
 	"io"
 	"log"
 	"os"
@@ -15,39 +15,21 @@ import (
 )
 
 func main() {
-	var err error
 
 	// Set up app execution context
 	ctx, shutdown := context.WithCancel(context.Background())
-
-	api := apphost.Adapter{}
-
-	// resolve identity
-	identity, err := api.Resolve("localnode")
-	if err != nil {
-		log.Panicln(proto.Error(err, "cannot resolve local node id"))
-		return
-	}
 
 	// setup connection
 	pr, pw := io.Pipe()
 	rw := &stdReadWrite{pr, os.Stdout}
 
-	// init dispatcher
-	logPrefix := "[CLI]"
-	d := proto.NewDispatcher(
-		logPrefix,
-		identity.String(),
-		true,
-		ctx,
-		api,
-		rw,
-		nil,
-		nil,
-	)
-	// run cli
+	// serve
+	cli := warpdrive.Cli{
+		Conn:   rw,
+		Client: jrpc.NewClient(),
+	}
 	go func() {
-		err = proto.Cli(d)
+		err := cli.Serve(ctx)
 		if err != nil {
 			log.Panicln(err)
 		} else {
@@ -62,14 +44,14 @@ func main() {
 		args := strings.Join(os.Args[1:], " ")
 		_, err := fmt.Fprint(pw, "prompt-off", "\n", args, "\n", "exit", "\n")
 		if err != nil {
-			log.Panicln(proto.Error(err, "cannot write args"))
+			log.Panicln(warpdrive.Error(err, "cannot write args"))
 		}
 	case false:
 		// switch to interactive mode, pass std in to cli
 		go func() {
 			_, err := io.Copy(pw, os.Stdin)
 			if err != nil {
-				log.Panicln(proto.Error(err, "cannot copy std in"))
+				log.Panicln(warpdrive.Error(err, "cannot copy std in"))
 			}
 		}()
 	}

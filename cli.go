@@ -1,4 +1,4 @@
-package proto
+package warpdrive
 
 import (
 	"bufio"
@@ -7,24 +7,35 @@ import (
 	"fmt"
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"github.com/cryptopunkscc/astrald/cslq"
+	"github.com/cryptopunkscc/astrald/lib/astral"
 	"io"
+	"log"
 	"strings"
 )
 
+const localnode = "localnode"
 const prompt = "warp> "
 
-func Cli(d *Dispatcher) (err error) {
-	if !d.authorized {
-		return nil
+type Cli struct {
+	Conn io.ReadWriteCloser
+	Log  *log.Logger
+	Client
+}
+
+func (c Cli) Serve(ctx context.Context) (err error) {
+	localId, err := astral.Resolve(localnode)
+	if err != nil {
+		return err
 	}
+	ctx = context.WithValue(ctx, localnode, localId.String())
 	prompt := prompt
-	scanner := bufio.NewScanner(d.conn)
-	_, err = d.conn.Write([]byte(prompt))
+	scanner := bufio.NewScanner(c.Conn)
+	_, err = c.Conn.Write([]byte(prompt))
 	if err != nil {
 		err = Error(err, "Cannot write prompt")
 		return
 	}
-	c, err := NewClient(d.api).Connect(id.Identity{}, Port)
+	conn, err := c.Connect(id.Identity{}, Port)
 	if err != nil {
 		err = Error(err, "Cannot connect local client")
 		return
@@ -33,46 +44,48 @@ func Cli(d *Dispatcher) (err error) {
 	defer close(finish)
 	go func() {
 		select {
-		case <-d.ctx.Done():
+		case <-ctx.Done():
 		case <-finish:
 		}
-		_ = d.conn.Close()
-		_ = c.conn.Close()
+		_ = c.Conn.Close()
+		_ = conn.Close()
 	}()
+	_cslq := cslq.NewEndec(c.Conn)
 	for scanner.Scan() {
 		text := scanner.Text()
+
 		switch text {
 		case "prompt-off":
 			prompt = ""
-			_ = d.cslq.Encode("[c]c", "\n")
+			_ = _cslq.Encodef("[c]c", "\n")
 			continue
 		case "e", "exit":
 			return
 		case "", "h", "help":
-			_ = cliHelp(d.ctx, d.conn, c, nil)
-			_ = d.cslq.Encode("[c]c", prompt)
+			_ = cliHelp(ctx, c.Conn, conn, nil)
+			_ = _cslq.Encodef("[c]c", prompt)
 			continue
 		}
 
 		words := strings.Split(text, " ")
 		if len(words) == 0 {
-			_ = d.cslq.Encode("[c]c", prompt)
+			_ = _cslq.Encodef("[c]c", prompt)
 			continue
 		}
 		cmd, args := words[0], words[1:]
-		d.log = NewLogger(d.logPrefix, fmt.Sprintf("(%s)", cmd))
+		//c.Log = NewLogger(c.logPrefix, fmt.Sprintf("(%s)", cmd))
+		c.Log = log.Default()
 		fn, ok := commands[cmd]
 		if ok {
-			err = fn(d.ctx, d.conn, c, args)
+			err = fn(ctx, c.Conn, conn, args)
 			if err != nil {
-				err = Error(err, "cli command error")
-				return
+				c.Log.Println(err)
 			}
 			//d.Println("OK")
 		} else {
-			d.log.Println("no such cli command", cmd)
+			c.Log.Println("no such cli command", cmd)
 		}
-		_ = d.cslq.Encode("[c]c", prompt)
+		_ = _cslq.Encodef("[c]c", prompt)
 	}
 	return scanner.Err()
 }
@@ -127,19 +140,20 @@ func cliSend(ctx context.Context, writer io.ReadWriteCloser, client Client, args
 		_, err = fmt.Fprintln(writer, "<filePath> <peerId>?")
 		return
 	}
-	peer := client.localNode
+
+	peer := ctx.Value(localnode).(string)
 	if len(args) > 1 {
 		peer = args[1]
 	}
-	peerId, accepted, err := client.CreateOffer(PeerId(peer), args[0])
+	offer, err := client.CreateOffer(PeerId(peer), args[0])
 	if err != nil {
 		return err
 	}
 	status := "delivered"
-	if accepted {
+	if offer.Status == StatusAccepted {
 		status = "accepted"
 	}
-	_, err = fmt.Fprintln(writer, peerId, status)
+	_, err = fmt.Fprintln(writer, offer.Id, status)
 	return
 }
 

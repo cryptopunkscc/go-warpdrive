@@ -1,45 +1,80 @@
 package service
 
 import (
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive"
+	"log"
 	"sort"
 	"sync"
 	"time"
 )
 
-type offer struct {
-	Component
-	*proto.Offer
-	mu         *sync.RWMutex
-	offerSubs  *proto.Subscriptions
-	statusSubs *proto.Subscriptions
-	file       storage.Offer
-	mem        storage.Offer
-	incoming   bool
+var _ warpdrive.OfferService = &offerService{}
+
+type offerService struct {
+	*warpdrive.Offer
+	*log.Logger
+
+	mu              *sync.RWMutex
+	offersBroadcast *warpdrive.Broadcast[warpdrive.Offer]
+	statusBroadcast *warpdrive.Broadcast[warpdrive.OfferStatus]
+
+	offerFileStorage warpdrive.OfferStorage
+	offerMemStorage  warpdrive.OfferStorage
+
+	resolver    warpdrive.FileResolver
+	fileStorage warpdrive.FileStorage
+	peerStorage warpdrive.PeerStorage
+	changes     chan *offerService
+	incoming    bool
 }
 
-var _ proto.OfferService = &offer{}
-
-func (srv *offer) OfferSubscriptions() *proto.Subscriptions {
-	return srv.offerSubs
+func newOfferService(
+	current *warpdrive.Offer,
+	logger *log.Logger,
+	mu *sync.RWMutex,
+	offerFileStorage warpdrive.OfferStorage,
+	offerMemStorage warpdrive.OfferStorage,
+	resolver warpdrive.FileResolver,
+	fileStorage warpdrive.FileStorage,
+	peerStorage warpdrive.PeerStorage,
+	changes chan *offerService,
+	incoming bool,
+) *offerService {
+	return &offerService{
+		Offer:            current,
+		Logger:           logger,
+		mu:               mu,
+		offersBroadcast:  &warpdrive.Broadcast[warpdrive.Offer]{},
+		statusBroadcast:  &warpdrive.Broadcast[warpdrive.OfferStatus]{},
+		offerFileStorage: offerFileStorage,
+		offerMemStorage:  offerMemStorage,
+		resolver:         resolver,
+		fileStorage:      fileStorage,
+		peerStorage:      peerStorage,
+		changes:          changes,
+		incoming:         incoming,
+	}
 }
 
-func (srv *offer) StatusSubscriptions() *proto.Subscriptions {
-	return srv.statusSubs
+func (srv *offerService) OfferBroadcast() *warpdrive.Broadcast[warpdrive.Offer] {
+	return srv.offersBroadcast
 }
 
-func (srv *offer) Get(id proto.OfferId) (offer *proto.Offer) {
+func (srv *offerService) StatusBroadcast() *warpdrive.Broadcast[warpdrive.OfferStatus] {
+	return srv.statusBroadcast
+}
+
+func (srv *offerService) Get(id warpdrive.OfferId) (offer *warpdrive.Offer) {
 	srv.mu.RLock()
 	defer srv.mu.RUnlock()
-	offer = srv.mem.Get()[id]
+	offer = srv.offerMemStorage.GetMap()[id]
 	return
 }
 
-func (srv *offer) List() (offers []proto.Offer) {
+func (srv *offerService) List() (offers []warpdrive.Offer) {
 	srv.mu.RLock()
 	defer srv.mu.RUnlock()
-	m := srv.mem.Get()
+	m := srv.offerMemStorage.GetMap()
 	for _, o := range m {
 		offers = append(offers, *o)
 	}
@@ -47,50 +82,50 @@ func (srv *offer) List() (offers []proto.Offer) {
 	return
 }
 
-type byCreate []proto.Offer
+type byCreate []warpdrive.Offer
 
 func (a byCreate) Len() int           { return len(a) }
 func (a byCreate) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byCreate) Less(i, j int) bool { return a[i].Create < a[j].Create }
 
-func (srv *offer) Add(
-	offerId proto.OfferId,
-	files []proto.Info,
-	peerId proto.PeerId,
-) (offer *proto.Offer) {
-	offer = &proto.Offer{
+func (srv *offerService) Add(
+	offerId warpdrive.OfferId,
+	files []warpdrive.Info,
+	peerId warpdrive.PeerId,
+) (offer *warpdrive.Offer) {
+	offer = &warpdrive.Offer{
 		Files:  files,
 		Peer:   peerId,
 		Create: time.Now().UnixMilli(),
-		OfferStatus: proto.OfferStatus{
-			Status: proto.StatusAwaiting,
+		OfferStatus: warpdrive.OfferStatus{
+			Status: warpdrive.StatusAwaiting,
 			In:     srv.incoming,
 			Id:     offerId,
 			Index:  -1,
 		},
 	}
-	srv.dispatch(offer)
+	srv.update(offer)
 	return
 }
 
-func (srv *offer) Accept(offer *proto.Offer) {
-	offer.Status = proto.StatusAccepted
-	srv.dispatch(offer)
+func (srv *offerService) Accept(offer *warpdrive.Offer) {
+	offer.Status = warpdrive.StatusAccepted
+	srv.update(offer)
 }
 
-func (srv *offer) Finish(offer *proto.Offer, err error) {
+func (srv *offerService) Finish(offer *warpdrive.Offer, err error) {
 	if err == nil {
 		offer.Index = len(offer.Files)
 		offer.Progress = 0
-		offer.Status = proto.StatusCompleted
+		offer.Status = warpdrive.StatusCompleted
 	} else {
-		offer.Status = proto.StatusFailed
+		offer.Status = warpdrive.StatusFailed
 	}
-	srv.dispatch(offer)
+	srv.update(offer)
 }
 
-func (srv *offer) dispatch(offer *proto.Offer) {
+func (srv *offerService) update(offer *warpdrive.Offer) {
 	offer.Update = time.Now().UnixMilli()
 	srv.Offer = offer
-	srv.Offers <- srv
+	srv.changes <- srv
 }

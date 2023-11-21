@@ -1,7 +1,8 @@
-package proto
+package warpdrive
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 )
@@ -16,4 +17,8 @@ func NewLogger(prefix ...interface{}) *log.Logger {
 		chunks = append(chunks, fmt.Sprint(chunk)+suffix)
 	}
 	return log.New(os.Stderr, fmt.Sprint(chunks...), log.LstdFlags|log.Lmsgprefix)
+}
+
+func LogDiscard() *log.Logger {
+	return log.New(io.Discard, "", 0)
 }
