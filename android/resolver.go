@@ -1,8 +1,8 @@
 package android
 
 import (
+	"github.com/cryptopunkscc/go-apphost-jrpc/android/content"
 	"github.com/cryptopunkscc/go-warpdrive"
-	"github.com/cryptopunkscc/go-warpdrive/android/content"
 	"path"
 )
 

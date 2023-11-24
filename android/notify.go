@@ -2,8 +2,8 @@ package android
 
 import (
 	"fmt"
+	android "github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
 	"github.com/cryptopunkscc/go-warpdrive"
-	android "github.com/cryptopunkscc/go-warpdrive/android/notify"
 	"github.com/cryptopunkscc/go-warpdrive/service"
 	"log"
 	"strconv"

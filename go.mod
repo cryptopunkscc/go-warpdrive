@@ -5,7 +5,8 @@ go 1.21
 toolchain go1.21.3
 
 require (
-	github.com/cryptopunkscc/astrald v0.0.0-20231107162829-13149c62ccca
+	github.com/cryptopunkscc/astrald v0.0.0-20231114153410-882e0a55b5d1
+	github.com/cryptopunkscc/go-apphost-jrpc v0.0.0-20231124194027-121a0d4687ad
 	github.com/mitchellh/ioprogress v0.0.0-20180201004757-6a23b12fa88e
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 )
