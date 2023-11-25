@@ -1,7 +1,6 @@
 package warpdrive
 
 import (
-	"context"
 	"io"
 	"sync"
 )
@@ -11,8 +10,8 @@ type Service interface {
 	Outgoing() OfferService
 	Peer() PeerService
 	File() FileService
-	Start(ctx context.Context) <-chan struct{}
 	Job() *sync.WaitGroup
+	Done() <-chan struct{}
 }
 
 type PeerService interface {
@@ -29,8 +28,8 @@ type OfferService interface {
 	Accept(offer *Offer)
 	Copy(offer *Offer) CopyOffer
 	Finish(offer *Offer, err error)
-	OfferSubscriptions() *Subscriptions
-	StatusSubscriptions() *Subscriptions
+	OfferBroadcast() *Broadcast[Offer]
+	StatusBroadcast() *Broadcast[OfferStatus]
 }
 
 type CopyOffer interface {

@@ -1,37 +1,36 @@
 package warpdrive
 
 import (
+	"context"
 	"sync"
 )
 
-type Unsubscribe func()
-type Listener chan<- interface{}
-
-type Subscriptions struct {
+type Broadcast[T any] struct {
 	mu   sync.Mutex
-	subs map[Listener]Unsubscribe
+	subs map[chan<- T]any
 }
 
-func NewSubscriptions() *Subscriptions {
-	return &Subscriptions{subs: map[Listener]Unsubscribe{}}
+func NewBroadcast[T any]() *Broadcast[T] {
+	return &Broadcast[T]{subs: make(map[chan<- T]any)}
 }
 
-func (s *Subscriptions) Notify(data interface{}) {
+func (s *Broadcast[T]) Emit(v T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for subscriber := range s.subs {
-		subscriber <- data
+	for sub := range s.subs {
+		sub <- v
 	}
 }
 
-func (s *Subscriptions) Subscribe(c Listener) (unsub Unsubscribe) {
-	unsub = func() {
+func (s *Broadcast[T]) Listen(ctx context.Context, c chan<- T) {
+	go func() {
+		<-ctx.Done()
 		s.mu.Lock()
 		delete(s.subs, c)
 		s.mu.Unlock()
-	}
+	}()
 	s.mu.Lock()
-	s.subs[c] = unsub
+	s.subs[c] = nil
 	s.mu.Unlock()
 	return
 }

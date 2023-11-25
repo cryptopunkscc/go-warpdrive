@@ -2,18 +2,17 @@ package service
 
 import (
 	"github.com/cryptopunkscc/go-warpdrive"
-	"github.com/cryptopunkscc/go-warpdrive/storage/file"
 	"github.com/mitchellh/ioprogress"
 	"io"
 	"time"
 )
 
-func (srv *offer) Copy(offer *warpdrive.Offer) warpdrive.CopyOffer {
+func (srv *offerService) Copy(offer *warpdrive.Offer) warpdrive.CopyOffer {
 	srv.Offer = offer
 	return srv
 }
 
-func (srv *offer) From(reader io.Reader) (err error) {
+func (srv *offerService) From(reader io.Reader) (err error) {
 	offer := srv.Offer
 	offer.Status = warpdrive.StatusUpdated
 	for i := range offer.Files {
@@ -29,21 +28,21 @@ func (srv *offer) From(reader io.Reader) (err error) {
 	return
 }
 
-func (srv *offer) fileFrom(reader io.Reader) (err error) {
-	s := file.Storage(srv.StorageDir)
-	offer := srv.Offer
+func (srv *offerService) fileFrom(reader io.Reader) (err error) {
+	s := srv.fileStorage
+	o := srv.Offer
 
-	info := srv.Files[offer.Index]
+	info := o.Files[o.Index]
 	if info.IsDir {
 		err := s.MkDir(info.Uri, info.Perm)
 		if err != nil && !s.IsExist(err) {
 			srv.Println("Cannot make dir", info.Uri, err)
 			return err
 		}
-		srv.update(info.Size)
+		srv.progress(info.Size)
 		return nil
 	}
-	offset := offer.Progress
+	offset := o.Progress
 	writer, err := s.FileWriter(info.Uri, info.Perm, offset)
 	if err != nil {
 		srv.Println("Cannot get writer for", info.Uri, err)
@@ -58,7 +57,7 @@ func (srv *offer) fileFrom(reader io.Reader) (err error) {
 	}()
 	// Copy bytes
 	update := func(progress int64, size int64) error {
-		srv.update(offset + progress)
+		srv.progress(offset + progress)
 		return nil
 	}
 	progress := &ioprogress.Reader{
@@ -68,68 +67,70 @@ func (srv *offer) fileFrom(reader io.Reader) (err error) {
 		DrawFunc:     update,
 	}
 	l, err := io.CopyN(writer, progress, info.Size-offset)
-	srv.Progress = offset + l
+	o.Progress = offset + l
 	if err != nil {
-		srv.Println("Cannot read", info.Uri, err, "expected size", info.Size, "but was", srv.Progress)
+		srv.Println("Cannot read", info.Uri, err, "expected size", info.Size, "but was", o.Progress)
 		return err
 	}
-	if srv.Progress != info.Size {
-		srv.update(info.Size)
+	if o.Progress != info.Size {
+		srv.progress(info.Size)
 	}
 	return
 }
 
-func (srv *offer) To(writer io.Writer) (err error) {
-	srv.Status = warpdrive.StatusUpdated
-	for i := range srv.Files {
-		if i < srv.Index {
+func (srv *offerService) To(writer io.Writer) (err error) {
+	o := srv.Offer
+	o.Status = warpdrive.StatusUpdated
+	for i := range o.Files {
+		if i < o.Index {
 			continue
 		}
-		srv.Index = i
+		o.Index = i
 		if err = srv.fileTo(writer); err != nil {
 			return
 		}
-		srv.Progress = 0
+		o.Progress = 0
 	}
 	return
 }
 
-func (srv *offer) fileTo(writer io.Writer) (err error) {
-	info := srv.Files[srv.Index]
+func (srv *offerService) fileTo(writer io.Writer) (err error) {
+	o := srv.Offer
+	info := o.Files[o.Index]
 	if info.IsDir {
-		srv.update(info.Size)
+		srv.progress(info.Size)
 		return
 	}
-	offset := srv.Progress
-	reader, err := srv.Reader(info.Uri, offset)
+	offset := o.Progress
+	reader, err := srv.resolver.Reader(info.Uri, offset)
 	if err != nil {
-		srv.Println("Cannot get reader", info.Uri, srv.Id, err)
+		srv.Println("Cannot get reader", info.Uri, o.Id, err)
 		return
 	}
 	defer reader.Close()
 	update := func(progress int64, size int64) error {
-		srv.update(offset + progress)
+		srv.progress(offset + progress)
 		return nil
 	}
-	progress := &ioprogress.Reader{
+	progressReader := &ioprogress.Reader{
 		Reader:       reader,
 		Size:         info.Size,
 		DrawInterval: 1000 * time.Millisecond,
 		DrawFunc:     update,
 	}
-	l, err := io.CopyN(writer, progress, info.Size-offset)
+	l, err := io.CopyN(writer, progressReader, info.Size-offset)
 	if err != nil {
 		srv.Println("Cannot write", info.Uri, err)
 		return err
 	}
-	srv.Progress = offset + l
-	if srv.Progress != info.Size {
-		srv.update(info.Size)
+	o.Progress = offset + l
+	if o.Progress != info.Size {
+		srv.progress(info.Size)
 	}
 	return
 }
 
-func (srv *offer) update(progress int64) {
-	srv.Progress = progress
-	srv.dispatch(srv.Offer)
+func (srv *offerService) progress(progress int64) {
+	srv.Offer.Progress = progress
+	srv.update(srv.Offer)
 }

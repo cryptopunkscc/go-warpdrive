@@ -59,7 +59,12 @@ func NewNotifier() service.Notify {
 
 func (m *notifier) createChannels() *notifier {
 
-	err := m.Create(m.inChannel)
+	err := m.Connect()
+	if err != nil {
+		log.Println("Cannot connect notification channel", err)
+		return nil
+	}
+	err = m.Create(m.inChannel)
 	if err != nil {
 		log.Println("Cannot create incoming notification channel", err)
 		return nil

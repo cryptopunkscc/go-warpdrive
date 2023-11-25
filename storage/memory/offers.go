@@ -12,6 +12,6 @@ func (r Offer) Save(offer warpdrive.Offer) {
 	r[offer.Id] = &offer
 }
 
-func (r Offer) Get() warpdrive.Offers {
+func (r Offer) GetMap() warpdrive.Offers {
 	return warpdrive.Offers(r)
 }

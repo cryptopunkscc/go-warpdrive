@@ -10,33 +10,20 @@ import (
 	"strings"
 )
 
-func Incoming(logger *log.Logger, repositoryDir string) warpdrive.OfferStorage {
-	o := offers{
-		logger,
-		filepath.Join(repositoryDir, "incoming"),
-	}
-	o.Init()
-	return o
-}
-
-func Outgoing(logger *log.Logger, repositoryDir string) warpdrive.OfferStorage {
-	o := offers{
-		logger,
-		filepath.Join(repositoryDir, "outgoing"),
-	}
-	o.Init()
-	return o
-}
-
 type offers struct {
 	*log.Logger
 	dir string
 }
 
-var _ warpdrive.OfferStorage = offers{}
-
-func (r offers) Init() {
-	_ = os.MkdirAll(r.normalizePath(""), 0700)
+func NewOffersStorage(logger *log.Logger, dir string) warpdrive.OfferStorage {
+	o := offers{
+		logger,
+		dir,
+	}
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		panic(err)
+	}
+	return o
 }
 
 func (r offers) Save(offer warpdrive.Offer) {
@@ -56,7 +43,7 @@ func (r offers) Save(offer warpdrive.Offer) {
 	}
 }
 
-func (r offers) Get() warpdrive.Offers {
+func (r offers) GetMap() warpdrive.Offers {
 	offers := make(warpdrive.Offers)
 	dir := r.normalizePath("")
 	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {

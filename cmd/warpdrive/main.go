@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/cryptopunkscc/astrald/lib/astral"
 	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/proto"
 	"io"
@@ -16,35 +15,18 @@ import (
 )
 
 func main() {
-	var err error
 
 	// Set up app execution context
 	ctx, shutdown := context.WithCancel(context.Background())
-
-	// resolve identity
-	identity, err := astral.Resolve("localnode")
-	if err != nil {
-		log.Panicln(warpdrive.Error(err, "cannot resolve local node id"))
-		return
-	}
 
 	// setup connection
 	pr, pw := io.Pipe()
 	rw := &stdReadWrite{pr, os.Stdout}
 
-	// init dispatcher
-	logPrefix := "[CLI]"
-	d := proto.NewDispatcher(
-		logPrefix,
-		identity.String(),
-		true,
-		ctx,
-		rw,
-		nil,
-	)
-	// run cli
+	// serve
+	cli := proto.Cli{Conn: rw}
 	go func() {
-		err = proto.Cli(d)
+		err := cli.Serve(ctx)
 		if err != nil {
 			log.Panicln(err)
 		} else {

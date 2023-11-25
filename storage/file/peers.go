@@ -8,16 +8,16 @@ import (
 	"path/filepath"
 )
 
-func Peers(logger *log.Logger, repositoryDir string) warpdrive.PeerStorage {
+type peers struct {
+	*log.Logger
+	path string
+}
+
+func NewPeersStorage(logger *log.Logger, repositoryDir string) warpdrive.PeerStorage {
 	return peers{
 		logger,
 		filepath.Join(repositoryDir, "peers"),
 	}
-}
-
-type peers struct {
-	*log.Logger
-	path string
 }
 
 func (r peers) Save(peers []warpdrive.Peer) {

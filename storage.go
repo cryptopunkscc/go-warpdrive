@@ -5,10 +5,20 @@ import (
 	"os"
 )
 
+type StorageFactory interface {
+	OfferCache(offers Offers) OfferStorage
+	Offer(dir string) OfferStorage
+	PeerCache() PeerStorage
+	Peer() PeerStorage
+	File() FileStorage
+	Resolver() FileResolver
+}
+
 type OfferStorage interface {
 	Save(offer Offer)
-	Get() Offers
+	GetMap() Offers
 }
+type Offers map[OfferId]*Offer
 
 type PeerStorage interface {
 	Save(peers []Peer)
@@ -16,7 +26,7 @@ type PeerStorage interface {
 	List() []Peer
 }
 
-type File interface {
+type FileStorage interface {
 	IsExist(err error) bool
 	MkDir(path string, perm os.FileMode) error
 	FileWriter(path string, perm os.FileMode, offset int64) (io.WriteCloser, error)

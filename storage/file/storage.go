@@ -8,23 +8,23 @@ import (
 	"strings"
 )
 
-type files struct {
+type storage struct {
 	dir string
 }
 
-func Storage(dir string) warpdrive.File {
-	return &files{dir: dir}
+func NewStorage(dir string) warpdrive.FileStorage {
+	return &storage{dir: dir}
 }
 
-func (s files) IsExist(err error) bool {
+func (s storage) IsExist(err error) bool {
 	return os.IsExist(err)
 }
 
-func (s files) MkDir(path string, perm os.FileMode) error {
+func (s storage) MkDir(path string, perm os.FileMode) error {
 	return os.MkdirAll(s.normalizePath(path), perm)
 }
 
-func (s files) FileWriter(path string, perm os.FileMode, offset int64) (w io.WriteCloser, err error) {
+func (s storage) FileWriter(path string, perm os.FileMode, offset int64) (w io.WriteCloser, err error) {
 	// Try to create storage dir on demand.
 	if err = s.MkDir("", 0755); err != nil {
 		return
@@ -41,7 +41,7 @@ func (s files) FileWriter(path string, perm os.FileMode, offset int64) (w io.Wri
 	return
 }
 
-func (s files) normalizePath(path string) string {
+func (s storage) normalizePath(path string) string {
 	if strings.HasPrefix(path, "/") {
 		return path
 	}
