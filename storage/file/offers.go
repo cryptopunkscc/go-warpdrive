@@ -53,7 +53,7 @@ func (r offers) GetMap() warpdrive.Offers {
 		normalizedPath := r.normalizePath(path)
 		file, err := os.Open(normalizedPath)
 		if err != nil {
-			r.Println("cannot open", err)
+			r.Println("cannot open:", err)
 			return nil
 		}
 		id := warpdrive.OfferId(info.Name())
@@ -73,7 +73,7 @@ func (r offers) GetMap() warpdrive.Offers {
 }
 
 func (r offers) normalizePath(path string) string {
-	if strings.HasPrefix(path, "/") {
+	if strings.HasPrefix(path, "/") || strings.HasPrefix(path, r.dir) {
 		return path
 	}
 	return filepath.Join(r.dir, path)

@@ -13,22 +13,18 @@ func Start(
 	srv warpdrive.Service,
 ) (err error) {
 	l := logger
-
-	c := Client{}
-	c.Ctx = ctx
-
 	s := rpc.Server[warpdrive.Api]{
-		Ctx: ctx,
-
-		Handler: func(conn *rpc.Conn) (h warpdrive.Api) {
+		Handler: func(ctx2 context.Context, conn *rpc.Conn) (h warpdrive.Api) {
 			if conn != nil {
 				conn.WithLogger(l)
 				h = warpdrive.NewHandler(
-					conn.Conn,
 					ctx,
-					&c,
+					ctx2,
+					conn,
+					&Client{},
 					srv,
 					l,
+					conn.RemoteIdentity(),
 				)
 			} else {
 				h = warpdrive.Handler{}
@@ -37,5 +33,5 @@ func Start(
 		},
 	}
 
-	return s.Run()
+	return s.Run(ctx)
 }

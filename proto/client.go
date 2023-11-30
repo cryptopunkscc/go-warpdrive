@@ -1,11 +1,11 @@
 package proto
 
 import (
-	"context"
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"github.com/cryptopunkscc/astrald/lib/astral"
 	rpc "github.com/cryptopunkscc/go-apphost-jrpc"
 	"github.com/cryptopunkscc/go-warpdrive"
+	"io"
 )
 
 type Client struct {
@@ -25,20 +25,14 @@ func NewClient() warpdrive.Client {
 }
 
 func (c Client) Connect(identity id.Identity, port string) (client warpdrive.Client, err error) {
-	conn, err := astral.Query(identity, port)
-	if err != nil {
-		return
+	if c.ReadWriteCloser, err = astral.Query(identity, port); err == nil {
+		client = c.Attach(c.ReadWriteCloser)
 	}
-	client = c.Attach(*conn)
 	return
 }
 
-func (c Client) Attach(conn astral.Conn) (client warpdrive.Client) {
-	if c.Ctx == nil {
-		c.Ctx = context.Background()
-	}
-
-	c.Conn = *rpc.NewConn(c.Ctx, &conn)
+func (c Client) Attach(conn io.ReadWriteCloser) (client warpdrive.Client) {
+	c.Conn = *rpc.NewConn(conn)
 	client = &c
 	return
 }

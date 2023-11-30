@@ -4,14 +4,13 @@ import (
 	"fmt"
 	android "github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
 	"github.com/cryptopunkscc/go-warpdrive"
-	"github.com/cryptopunkscc/go-warpdrive/service"
 	"log"
 	"strconv"
 	"strings"
 )
 
 type notifier struct {
-	android.Client
+	android.ApiClient
 	notify        android.Notify
 	inChannel     android.Channel
 	outChannel    android.Channel
@@ -21,8 +20,17 @@ type notifier struct {
 	notifications map[warpdrive.OfferId]*android.Notification
 }
 
-func NewNotifier() service.Notify {
-	m := &notifier{}
+func CreateNotify(client android.ApiClient) warpdrive.CreateNotify {
+	return func() warpdrive.Notify {
+		if notify, err := (&notifier{ApiClient: client}).createNotify(); err != nil {
+			panic(err)
+		} else {
+			return notify
+		}
+	}
+}
+
+func (m *notifier) createNotify() (s warpdrive.Notify, err error) {
 	m.inChannel = android.Channel{
 		Id:         "warpdrive-in",
 		Name:       "Warp Drive incoming",
@@ -52,33 +60,33 @@ func NewNotifier() service.Notify {
 
 	m.notifications = map[warpdrive.OfferId]*android.Notification{}
 
-	m.createChannels()
-
-	return m.Notify
+	if m, err = m.createChannels(); m != nil {
+		s = m.Notify
+	}
+	return
 }
 
-func (m *notifier) createChannels() *notifier {
-
-	err := m.Connect()
+func (m *notifier) createChannels() (n *notifier, err error) {
+	err = m.Connect()
 	if err != nil {
-		log.Println("Cannot connect notification channel", err)
-		return nil
+		err = fmt.Errorf("cannot connect notification channel: %v", err)
+		return
 	}
 	err = m.Create(m.inChannel)
 	if err != nil {
-		log.Println("Cannot create incoming notification channel", err)
-		return nil
+		err = fmt.Errorf("cannot create incoming notification channel: %v", err)
+		return
 	}
 	err = m.Create(m.outChannel)
 	if err != nil {
-		log.Println("Cannot create outgoing notification channel", err)
-		return nil
+		err = fmt.Errorf("cannot create outgoing notification channel: %v", err)
+		return
 	}
-	m.notify = m.Notifier()
-	return m
+	m.notify = android.Notifier(m.ApiClient)
+	return m, nil
 }
 
-func (m *notifier) Notify(notifications []service.Notification) {
+func (m *notifier) Notify(notifications []warpdrive.Notification) {
 	// Update notifications cache
 	for _, n := range notifications {
 		switch n.Status {
@@ -130,7 +138,7 @@ func (m *notifier) Notify(notifications []service.Notification) {
 	}
 }
 
-func (m *notifier) create(an service.Notification) (n *android.Notification) {
+func (m *notifier) create(an warpdrive.Notification) (n *android.Notification) {
 	channel := m.outChannel
 	n = &android.Notification{
 		Id:            m.nextId(),
@@ -193,7 +201,7 @@ func (m *notifier) create(an service.Notification) (n *android.Notification) {
 	return
 }
 
-func (m *notifier) progress(an service.Notification) {
+func (m *notifier) progress(an warpdrive.Notification) {
 	n := m.notifications[an.Offer.Id]
 	if n == nil {
 		n = m.create(an)
@@ -214,7 +222,7 @@ func (m *notifier) progress(an service.Notification) {
 	m.notifications[an.Offer.Id] = n
 }
 
-func (m *notifier) finish(an service.Notification) {
+func (m *notifier) finish(an warpdrive.Notification) {
 	n := m.notifications[an.Offer.Id]
 	if n == nil {
 		n = m.create(an)
@@ -232,14 +240,14 @@ func (m *notifier) finish(an service.Notification) {
 	m.notifications[an.Offer.Id] = n
 }
 
-func titlePrefix(an service.Notification) string {
+func titlePrefix(an warpdrive.Notification) string {
 	if an.In {
 		return "Downloading from"
 	}
 	return "Uploading to"
 }
 
-func formatPeerName(an service.Notification) (name string) {
+func formatPeerName(an warpdrive.Notification) (name string) {
 	name = an.Peer.Alias
 	if name == "" && len(an.Peer.Id) == 66 {
 		shortId := string(an.Peer.Id)[58:66]
@@ -251,7 +259,7 @@ func formatPeerName(an service.Notification) (name string) {
 	return
 }
 
-func formatTransferredSize(an service.Notification) (str string) {
+func formatTransferredSize(an warpdrive.Notification) (str string) {
 	str = ByteCountSI(sumSize(an))
 	if an.Index < len(an.Files) {
 		str += " / " + ByteCountSI(totalSize(an))
@@ -259,14 +267,14 @@ func formatTransferredSize(an service.Notification) (str string) {
 	return
 }
 
-func totalSize(an service.Notification) (size int64) {
+func totalSize(an warpdrive.Notification) (size int64) {
 	for _, file := range an.Files {
 		size += file.Size
 	}
 	return
 }
 
-func sumSize(an service.Notification) (size int64) {
+func sumSize(an warpdrive.Notification) (size int64) {
 	for i := 0; i < an.Index; i++ {
 		size += an.Files[i].Size
 	}

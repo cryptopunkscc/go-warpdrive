@@ -2,23 +2,22 @@ package warpdrive
 
 import (
 	"github.com/cryptopunkscc/astrald/auth/id"
-	"github.com/cryptopunkscc/astrald/lib/astral"
 	uuid "github.com/nu7hatch/gouuid"
-	"net"
+	"io"
 	"os"
 )
 
 type Client interface {
 	Api
 	Connect(identity id.Identity, port string) (client Client, err error)
-	Attach(conn astral.Conn) (client Client)
+	Attach(conn io.ReadWriteCloser) (client Client)
 	Notify() error
 	Await() error
 	Close() (err error)
 }
 
 type Api interface {
-	net.Conn
+	io.ReadWriteCloser
 	LocalApi
 	RemoteApi
 }

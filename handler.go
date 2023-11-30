@@ -3,7 +3,7 @@ package warpdrive
 import (
 	"context"
 	"github.com/cryptopunkscc/astrald/auth/id"
-	"github.com/cryptopunkscc/astrald/lib/astral"
+	"io"
 	"log"
 	"net/url"
 	"path/filepath"
@@ -12,26 +12,32 @@ import (
 )
 
 type Handler struct {
-	astral.Conn
-	ctx    context.Context
-	client Client
-	srv    Service
-	Log    *log.Logger
+	io.ReadWriteCloser
+	ctx      context.Context
+	parent   context.Context
+	client   Client
+	srv      Service
+	logger   *log.Logger
+	remoteID id.Identity
 }
 
 func NewHandler(
-	conn astral.Conn,
+	parent context.Context,
 	ctx context.Context,
+	conn io.ReadWriteCloser,
 	client Client,
 	srv Service,
 	log *log.Logger,
+	remoteID id.Identity,
 ) Api {
 	return &Handler{
-		Conn:   conn,
-		ctx:    ctx,
-		client: client,
-		srv:    srv,
-		Log:    log,
+		ReadWriteCloser: conn,
+		ctx:             ctx,
+		parent:          parent,
+		client:          client,
+		srv:             srv,
+		logger:          log,
+		remoteID:        remoteID,
 	}
 }
 
@@ -50,10 +56,13 @@ func (d Handler) CreateOffer(peerId PeerId, filePath string) (os OfferStatus, er
 	}
 
 	// Parse identity
-	identity, err := id.ParsePublicKeyHex(string(peerId))
-	if err != nil {
-		err = Error(err, "Cannot parse peer id")
-		return
+	identity := id.Identity{}
+	if peerId != "" {
+		identity, err = id.ParsePublicKeyHex(string(peerId))
+		if err != nil {
+			err = Error(err, "Cannot parse peer id")
+			return
+		}
 	}
 
 	// Connect to remote client
@@ -116,7 +125,7 @@ func shrinkPaths(in []Info) (out []Info) {
 
 func (d Handler) AcceptOffer(offerId OfferId) (err error) {
 	// Download offer
-	d.Log.Println("Accepted incoming files", offerId)
+	d.logger.Println("Accepted incoming files", offerId)
 	if err = d.downloadAsync(offerId); err != nil {
 		err = Error(err, "Cannot download incoming files", offerId)
 		return
@@ -208,7 +217,7 @@ func (d Handler) downloadAsync(offerId OfferId) (err error) {
 	go func() {
 		var err error
 		select {
-		case <-d.ctx.Done():
+		case <-d.parent.Done():
 		case err = <-done:
 		}
 		_ = client.Close()
@@ -240,11 +249,11 @@ func (d Handler) downloadAsync(offerId OfferId) (err error) {
 // ============================ remote ============================
 
 func (d Handler) SendOffer(offerId OfferId, files []Info) (accepted bool, err error) {
-	peerId := PeerId(d.RemoteIdentity().String())
+	peerId := PeerId(d.remoteID.String())
 	peer := d.srv.Peer().Get(peerId)
 	// Check if peer is blocked
 	if peer.Mod == PeerModBlock {
-		d.Log.Println("Blocked request from", peerId)
+		d.logger.Println("Blocked request from", peerId)
 		return
 	}
 
@@ -256,7 +265,7 @@ func (d Handler) SendOffer(offerId OfferId, files []Info) (accepted bool, err er
 	if peer.Mod == PeerModTrust {
 		err = d.downloadAsync(offerId)
 		if err != nil {
-			d.Log.Println("Cannot auto accept files offer", offerId, err)
+			d.logger.Println("Cannot auto accept files offer", offerId, err)
 		} else {
 			accepted = true
 			//code = warpdrive.OfferAccepted
@@ -277,7 +286,7 @@ func (d Handler) Download(offerId OfferId, index int, offset int64) (err error) 
 	// Update status
 	srv.Accept(offer)
 
-	c := d.client.Attach(d.Conn)
+	c := d.client.Attach(d)
 	if err = c.Notify(); err != nil {
 		return
 	}
@@ -288,7 +297,7 @@ func (d Handler) Download(offerId OfferId, index int, offset int64) (err error) 
 	d.srv.Job().Add(1)
 	offer.Index = index
 	offer.Progress = offset
-	if err = srv.Copy(offer).To(d.Conn); err != nil {
+	if err = srv.Copy(offer).To(d); err != nil {
 		return Error(err, "Cannot upload files")
 	}
 	srv.Finish(offer, err)

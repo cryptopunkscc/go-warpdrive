@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
-	"github.com/cryptopunkscc/go-warpdrive/service"
-	"github.com/cryptopunkscc/go-warpdrive/storage"
+	"github.com/cryptopunkscc/go-warpdrive/start"
 	"log"
 	"os"
 	"os/signal"
@@ -35,17 +33,14 @@ func main() {
 		}
 	}()
 
-	cache := cacheDir()
-	store := storageDir()
-	factory := storage.NewFactory(logger, cache, store)
-	srv := service.Start(ctx, logger, nil, factory)
-	if err := proto.Start(ctx, logger, srv); err != nil {
-		logger.Println("cannot run server:", err)
+	if err := start.Warpdrive(ctx, start.Args{
+		Logger: logger,
+		Cache:  cacheDir(),
+		Store:  storageDir(),
+	}); err != nil {
+		log.Println(err.Error())
 		os.Exit(1)
 	}
-
-	<-ctx.Done()
-	<-srv.Done()
 
 	time.Sleep(50 * time.Millisecond)
 }

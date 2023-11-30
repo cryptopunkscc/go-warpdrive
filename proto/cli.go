@@ -26,21 +26,20 @@ type Cli struct {
 
 func Run(ctx context.Context) error {
 	s := rpc.Server[any]{}
-	s.Ctx = ctx
-	s.Accept = func(query *astral.QueryData) (conn *astral.Conn, err error) {
+	s.Accept = func(query *astral.QueryData) (conn io.ReadWriteCloser, err error) {
 		if query.RemoteIdentity() == id.Anyone {
 			return query.Accept()
 		}
 		return nil, errors.New("rejected")
 	}
-	s.Handler = func(conn *rpc.Conn) any {
+	s.Handler = func(ctx context.Context, conn *rpc.Conn) any {
 		if conn == nil {
 			return warpdrive.PortCli
 		}
 		c := Cli{Conn: conn}
 		return c.Serve(ctx)
 	}
-	return s.Run()
+	return s.Run(ctx)
 }
 
 func (c Cli) Serve(ctx context.Context) (err error) {

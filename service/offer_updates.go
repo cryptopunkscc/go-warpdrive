@@ -9,21 +9,13 @@ import (
 	"time"
 )
 
-type Notify func([]Notification)
-
-type Notification struct {
-	warpdrive.Peer
-	warpdrive.Offer
-	*warpdrive.Info
-}
-
 type offerUpdates struct {
 	channel chan *offerService
 	log     *log.Logger
 	inMu    sync.Locker
 	outMu   sync.Locker
 	job     *sync.WaitGroup
-	notify  Notify
+	notify  warpdrive.Notify
 }
 
 func (c offerUpdates) Start(ctx context.Context) <-chan struct{} {
@@ -119,7 +111,7 @@ func (c offerUpdates) processUpdates(buffer offerUpdatesBuffer) {
 
 	// Display system notification
 	if n := c.notify; n != nil {
-		arr := make([]Notification, len(updates))
+		arr := make([]warpdrive.Notification, len(updates))
 		for i, update := range updates {
 			arr[i] = update.notification()
 		}
@@ -143,12 +135,18 @@ func (a byUpdateTime) Len() int           { return len(a) }
 func (a byUpdateTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byUpdateTime) Less(i, j int) bool { return a[i].Update < a[j].Update }
 
-func (srv *offerService) notification() (n Notification) {
+func (srv *offerService) notification() (n warpdrive.Notification) {
 	o := *srv.Offer
-	n = Notification{
-		Peer:  *srv.peerStorage.Get()[o.Peer],
+	n = warpdrive.Notification{
+		Peer: warpdrive.Peer{
+			Id: o.Peer,
+		},
 		Offer: o,
 	}
+	if p := srv.peerStorage.Get()[o.Peer]; p != nil {
+		n.Peer = *p
+	}
+
 	if o.IsOngoing() {
 		n.Info = &o.Files[o.Index]
 	}

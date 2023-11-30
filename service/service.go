@@ -20,7 +20,7 @@ type service struct {
 func Start(
 	ctx context.Context,
 	logger *log.Logger,
-	notify Notify,
+	createNotify warpdrive.CreateNotify,
 	storageFactory warpdrive.StorageFactory,
 ) warpdrive.Service {
 	job := &sync.WaitGroup{}
@@ -30,6 +30,10 @@ func Start(
 	peers := storageFactory.Peer()
 	inOffers := storageFactory.Offer("incoming")
 	outOffers := storageFactory.Offer("outgoing")
+	var notify warpdrive.Notify
+	if createNotify != nil {
+		notify = createNotify()
+	}
 	srv := service{
 		job:  job,
 		file: storageFactory.Resolver(),
@@ -70,6 +74,7 @@ func Start(
 			mu:          &sync.RWMutex{},
 			memStorage:  storageFactory.PeerCache(),
 			fileStorage: storageFactory.Peer(),
+			logger:      logger,
 		},
 	}
 	srv.done = srv.updates.Start(ctx)
