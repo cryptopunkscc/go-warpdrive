@@ -24,7 +24,10 @@ func main() {
 	rw := &stdReadWrite{pr, os.Stdout}
 
 	// serve
-	cli := jrpc.Cli{Conn: rw}
+	cli := warpdrive.Cli{
+		Conn:   rw,
+		Client: jrpc.NewClient(),
+	}
 	go func() {
 		err := cli.Serve(ctx)
 		if err != nil {
