@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cryptopunkscc/go-warpdrive"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/jrpc"
 	"github.com/cryptopunkscc/go-warpdrive/service"
 	"github.com/cryptopunkscc/go-warpdrive/storage"
 	"io"
@@ -27,7 +27,7 @@ func Warpdrive(
 	}
 	factory := storage.NewFactory(args.Logger, args.Cache, args.Store)
 	srv := service.Start(ctx, args.Logger, args.CreateNotify, factory)
-	if err := proto.Start(ctx, args.Logger, srv); err != nil {
+	if err := jrpc.Start(ctx, args.Logger, srv); err != nil {
 		return fmt.Errorf("cannot run server: %v", err)
 	}
 

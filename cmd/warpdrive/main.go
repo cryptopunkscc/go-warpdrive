@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cryptopunkscc/go-warpdrive"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/jrpc"
 	"io"
 	"log"
 	"os"
@@ -24,7 +24,7 @@ func main() {
 	rw := &stdReadWrite{pr, os.Stdout}
 
 	// serve
-	cli := proto.Cli{Conn: rw}
+	cli := jrpc.Cli{Conn: rw}
 	go func() {
 		err := cli.Serve(ctx)
 		if err != nil {

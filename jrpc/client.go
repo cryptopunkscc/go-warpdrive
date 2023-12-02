@@ -1,4 +1,4 @@
-package proto
+package jrpc
 
 import (
 	"github.com/cryptopunkscc/astrald/auth/id"

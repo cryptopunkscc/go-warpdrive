@@ -6,7 +6,7 @@ import (
 	"github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
 	"github.com/cryptopunkscc/go-warpdrive"
 	"github.com/cryptopunkscc/go-warpdrive/android"
-	"github.com/cryptopunkscc/go-warpdrive/proto"
+	"github.com/cryptopunkscc/go-warpdrive/jrpc"
 	"github.com/cryptopunkscc/go-warpdrive/start"
 	"github.com/stretchr/testify/assert"
 	"log"
@@ -112,7 +112,7 @@ func TestMain_(t *testing.T) {
 }
 
 func testClient(t *testing.T) (api warpdrive.LocalApi, cancel func()) {
-	c := proto.NewClient()
+	c := jrpc.NewClient()
 	c, err := c.Connect(id.Identity{}, warpdrive.Port)
 	if err != nil {
 		t.Fatal(err)
