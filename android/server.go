@@ -15,5 +15,7 @@ func Server(ctx context.Context, cache string, store string) error {
 	factory.FileResolver = NewResolver()
 	createNotify := CreateNotify(notify.NewClient())
 	srv := service.Start(ctx, logger, createNotify, factory)
-	return jrpc.Start(ctx, logger, srv)
+	err := jrpc.Start(ctx, logger, srv)
+	<-srv.Done()
+	return err
 }

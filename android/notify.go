@@ -11,7 +11,7 @@ import (
 )
 
 type notifier struct {
-	notify.ApiClient
+	client        notify.ApiClient
 	notify        notify.Notify
 	inChannel     android.Channel
 	outChannel    android.Channel
@@ -23,7 +23,7 @@ type notifier struct {
 
 func CreateNotify(client notify.ApiClient) warpdrive.CreateNotify {
 	return func() warpdrive.Notify {
-		n := &notifier{ApiClient: client}
+		n := &notifier{client: client}
 		if c, err := n.createNotify(); err != nil {
 			panic(err)
 		} else {
@@ -69,22 +69,22 @@ func (m *notifier) createNotify() (s warpdrive.Notify, err error) {
 }
 
 func (m *notifier) createChannels() (n *notifier, err error) {
-	err = m.Connect()
+	err = m.client.Connect()
 	if err != nil {
 		err = fmt.Errorf("cannot connect notification channel: %v", err)
 		return
 	}
-	err = m.Create(m.inChannel)
+	err = m.client.Create(m.inChannel)
 	if err != nil {
 		err = fmt.Errorf("cannot create incoming notification channel: %v", err)
 		return
 	}
-	err = m.Create(m.outChannel)
+	err = m.client.Create(m.outChannel)
 	if err != nil {
 		err = fmt.Errorf("cannot create outgoing notification channel: %v", err)
 		return
 	}
-	m.notify = notify.Notifier(m.ApiClient)
+	m.notify = notify.Notifier(m.client)
 	return m, nil
 }
 

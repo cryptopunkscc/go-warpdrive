@@ -14,7 +14,7 @@ func TestClient_All(t *testing.T) {
 	t.Run("Notify", func(t *testing.T) {
 		c, cancel := notify.ConnectTestClient(t)
 		defer cancel()
-		nn := &notifier{ApiClient: c}
+		nn := &notifier{client: c}
 		n, err := nn.createNotify()
 		if err != nil {
 			t.Fatal(err)

@@ -32,6 +32,9 @@ func (c offerUpdates) Start(ctx context.Context) <-chan struct{} {
 		for {
 			select {
 			case update := <-receive:
+				if update == nil {
+					return
+				}
 				// Add received update to buffer
 				status := update.OfferStatus
 				buffer[status.In][status.Id] = update

@@ -2,6 +2,7 @@ package warpdrive
 
 import (
 	"context"
+	"errors"
 	"github.com/cryptopunkscc/astrald/auth/id"
 	"io"
 	"log"
@@ -211,16 +212,18 @@ func (d Handler) downloadAsync(offerId OfferId) (err error) {
 		_ = client.Close()
 		return err
 	}
-	done := make(chan error)
-
+	ctx, cancelFunc := context.WithCancelCause(context.Background())
 	// Ensure connection closed
 	go func() {
-		var err error
 		select {
 		case <-d.parent.Done():
-		case err = <-done:
+		case <-ctx.Done():
 		}
+		<-ctx.Done()
 		_ = client.Close()
+		if err = ctx.Err(); errors.Is(err, context.Canceled) {
+			err = nil
+		}
 		srv.Finish(offer, err)
 		time.Sleep(200)
 		d.srv.Job().Done()
@@ -228,20 +231,18 @@ func (d Handler) downloadAsync(offerId OfferId) (err error) {
 
 	// Download in background
 	go func() {
+		defer cancelFunc(err)
 		d.srv.Job().Add(1)
 
 		if err = client.Notify(); err != nil {
-			done <- Error(err, "Cannot download files")
+			err = Error(err, "Cannot download files")
 			return
 		}
-		//_, _ = client.Write([]byte{0})
 
-		if err := srv.Copy(offer).From(client); err != nil {
-			done <- Error(err, "Cannot download files")
+		if err = srv.Copy(offer).From(client); err != nil {
+			err = Error(err, "Cannot download files")
 			return
 		}
-		done <- nil
-
 	}()
 	return
 }
