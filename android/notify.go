@@ -2,7 +2,8 @@ package android
 
 import (
 	"fmt"
-	android "github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android"
+	"github.com/cryptopunkscc/go-apphost-jrpc/android/notify"
 	"github.com/cryptopunkscc/go-warpdrive"
 	"log"
 	"strconv"
@@ -10,8 +11,8 @@ import (
 )
 
 type notifier struct {
-	android.ApiClient
-	notify        android.Notify
+	notify.ApiClient
+	notify        notify.Notify
 	inChannel     android.Channel
 	outChannel    android.Channel
 	inGroup       android.Notification
@@ -20,12 +21,13 @@ type notifier struct {
 	notifications map[warpdrive.OfferId]*android.Notification
 }
 
-func CreateNotify(client android.ApiClient) warpdrive.CreateNotify {
+func CreateNotify(client notify.ApiClient) warpdrive.CreateNotify {
 	return func() warpdrive.Notify {
-		if notify, err := (&notifier{ApiClient: client}).createNotify(); err != nil {
+		n := &notifier{ApiClient: client}
+		if c, err := n.createNotify(); err != nil {
 			panic(err)
 		} else {
-			return notify
+			return c
 		}
 	}
 }
@@ -82,7 +84,7 @@ func (m *notifier) createChannels() (n *notifier, err error) {
 		err = fmt.Errorf("cannot create outgoing notification channel: %v", err)
 		return
 	}
-	m.notify = android.Notifier(m.ApiClient)
+	m.notify = notify.Notifier(m.ApiClient)
 	return m, nil
 }
 

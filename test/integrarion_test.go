@@ -53,8 +53,8 @@ func TestMain_(t *testing.T) {
 
 	t.Run("main flow", func(t *testing.T) {
 		// Init offer subscription
-		offerClient, cancel := testClient(t)
-		defer cancel()
+		offerClient, offerCancel := testClient(t)
+		defer offerCancel()
 		go func() {
 			offers, err := offerClient.ListenOffers(warpdrive.FilterAll)
 			if err != nil {
@@ -66,8 +66,8 @@ func TestMain_(t *testing.T) {
 		}()
 
 		// Init status subscription
-		statusClient, cancel := testClient(t)
-		defer cancel()
+		statusClient, statusCancel := testClient(t)
+		defer statusCancel()
 		go func() {
 			offers, err := statusClient.ListenStatus(warpdrive.FilterAll)
 			if err != nil {
@@ -79,8 +79,8 @@ func TestMain_(t *testing.T) {
 		}()
 
 		// Execute main flow
-		mainClient, cancel := testClient(t)
-		defer cancel()
+		mainClient, offerCancel := testClient(t)
+		defer offerCancel()
 
 		offer, err := mainClient.CreateOffer("", "integrarion_test.go")
 		if err != nil {
@@ -107,7 +107,7 @@ func TestMain_(t *testing.T) {
 			t.Error(err)
 		}
 
-		time.Sleep(time.Millisecond * 600)
+		time.Sleep(time.Millisecond * 1600)
 	})
 }
 

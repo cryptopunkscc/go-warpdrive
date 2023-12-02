@@ -13,7 +13,7 @@ func Server(ctx context.Context, cache string, store string) error {
 	logger := log.New(log.Writer(), "[warpdrive] ", 0)
 	factory := storage.NewFactory(logger, cache, store)
 	factory.FileResolver = NewResolver()
-	createNotify := CreateNotify(&notify.Client{})
+	createNotify := CreateNotify(notify.NewClient())
 	srv := service.Start(ctx, logger, createNotify, factory)
 	return proto.Start(ctx, logger, srv)
 }

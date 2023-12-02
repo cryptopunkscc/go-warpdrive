@@ -41,13 +41,13 @@ func TestClient_All(t *testing.T) {
 					Files:  nil,
 				},
 				Info: &warpdrive.Info{
-					Uri:   "",
-					Path:  "",
 					Size:  0,
-					IsDir: false,
 					Perm:  0,
-					Mime:  "",
-					Name:  "",
+					Uri:   "Uri",
+					Path:  "Path",
+					Mime:  "Mime",
+					Name:  "Name",
+					IsDir: false,
 				},
 			},
 		})

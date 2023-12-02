@@ -1,6 +1,7 @@
 package android
 
 import (
+	"github.com/cryptopunkscc/go-apphost-jrpc/android"
 	"github.com/cryptopunkscc/go-apphost-jrpc/android/content"
 	"github.com/cryptopunkscc/go-warpdrive"
 	"path"
@@ -30,7 +31,7 @@ func (c resolver) Info(uri string) (files []warpdrive.Info, err error) {
 	return
 }
 
-func resolveName(i content.Info) string {
+func resolveName(i android.Info) string {
 	switch {
 	case i.Name != "":
 		return i.Name
